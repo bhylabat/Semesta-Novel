@@ -5,6 +5,7 @@ import {
   LogOut, Calendar, Star, Library, ChevronRight, Shield
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import type { Profile as ProfileType } from '@/types';
 import { fetchBookmarks, fetchReadingHistory } from '@/lib/services';
 import { getGuestBookmarks, getGuestHistory } from '@/lib/guest';
 import { formatDate } from '@/lib/utils';
@@ -33,10 +34,14 @@ export default function Profile() {
   }, [user]);
 
   useEffect(() => {
-    loadStats();
+    void loadStats().catch((error) => {
+      console.error('Failed to load profile statistics:', error);
+      setBookmarkCount(0);
+      setHistoryCount(0);
+    });
   }, [loadStats]);
 
-  if (loading || !user || !profile) {
+  if (loading) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
         <div className="skeleton h-32 w-full rounded-2xl" />
@@ -44,6 +49,27 @@ export default function Profile() {
       </div>
     );
   }
+
+  if (!user) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 md:px-6 py-8">
+        <div className="card p-6 text-center">
+          <h1 className="text-lg font-semibold text-white">Silakan masuk terlebih dahulu</h1>
+          <p className="text-sm text-muted mt-2 mb-5">Masuk untuk melihat profil dan statistik bacamu.</p>
+          <Link to="/login" className="btn-primary">Masuk</Link>
+        </div>
+      </div>
+    );
+  }
+
+  const displayProfile: ProfileType = profile ?? {
+    id: user.id,
+    username: user.email?.split('@')[0] || 'Pembaca',
+    email: user.email || '',
+    avatar_url: null,
+    role: 'reader',
+    created_at: user.created_at,
+  };
 
   const menuItems = [
     { icon: Library, label: 'Rak Buku', to: '/library' },
@@ -59,16 +85,16 @@ export default function Profile() {
       <div className="card p-6 mb-6">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
           <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-2xl font-bold text-white flex-shrink-0">
-            {profile.username[0]?.toUpperCase()}
+            {displayProfile.username[0]?.toUpperCase()}
           </div>
           <div className="flex-1 text-center sm:text-left">
-            <h1 className="text-xl font-bold text-white">{profile.username}</h1>
-            <p className="text-sm text-muted mt-1">{profile.email}</p>
+            <h1 className="text-xl font-bold text-white">{displayProfile.username}</h1>
+            <p className="text-sm text-muted mt-1">{displayProfile.email}</p>
             <div className="flex items-center justify-center sm:justify-start gap-3 mt-2">
-              <span className="badge bg-primary/20 text-primary-300 capitalize">{profile.role}</span>
+              <span className="badge bg-primary/20 text-primary-300 capitalize">{displayProfile.role}</span>
               <span className="flex items-center gap-1 text-xs text-muted">
                 <Calendar className="h-3 w-3" />
-                Member sejak {formatDate(profile.created_at)}
+                Member sejak {formatDate(displayProfile.created_at)}
               </span>
             </div>
           </div>
@@ -109,7 +135,7 @@ export default function Profile() {
       </div>
 
       {/* Admin Link */}
-      {profile.role === 'admin' && (
+      {displayProfile.role === 'admin' && (
         <Link to="/admin" className="card p-4 mb-6 flex items-center gap-3 hover:bg-white/5 transition-colors group">
           <Shield className="h-5 w-5 text-primary-400" />
           <span className="flex-1 text-sm text-white">Admin Dashboard</span>

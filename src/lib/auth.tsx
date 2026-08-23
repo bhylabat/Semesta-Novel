@@ -16,6 +16,16 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+const AUTH_REQUEST_TIMEOUT_MS = 10000;
+
+function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      window.setTimeout(() => reject(new Error(`${label} timed out`)), AUTH_REQUEST_TIMEOUT_MS);
+    }),
+  ]);
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -28,32 +38,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      if (data.session?.user) {
-        fetchProfile(data.session.user.id).then((p) => {
-          setProfile(p);
-          setLoading(false);
-        });
-      } else {
-        setLoading(false);
-      }
-    });
+    let mounted = true;
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      (async () => {
-        setSession(newSession);
-        if (newSession?.user) {
-          const p = await fetchProfile(newSession.user.id);
-          setProfile(p);
+    const initializeAuth = async () => {
+      try {
+        const { data } = await withTimeout(supabase.auth.getSession(), 'Supabase session request');
+        if (!mounted) return;
+
+        setSession(data.session);
+        if (data.session?.user) {
+          try {
+            const p = await withTimeout(fetchProfile(data.session.user.id), 'Profile request');
+            if (mounted) setProfile(p);
+          } catch (error) {
+            console.error('Failed to load profile:', error);
+            if (mounted) setProfile(null);
+          }
         } else {
           setProfile(null);
         }
-        setLoading(false);
+      } catch (error) {
+        console.error('Failed to initialize authentication:', error);
+        if (mounted) {
+          setSession(null);
+          setProfile(null);
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    void initializeAuth();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      void (async () => {
+        if (!mounted) return;
+        setSession(newSession);
+        try {
+          if (newSession?.user) {
+            const p = await withTimeout(fetchProfile(newSession.user.id), 'Profile request');
+            if (mounted) setProfile(p);
+          } else {
+            setProfile(null);
+          }
+        } catch (error) {
+          console.error('Failed to update authentication state:', error);
+          if (mounted) setProfile(null);
+        } finally {
+          if (mounted) setLoading(false);
+        }
       })();
     });
 
     return () => {
+      mounted = false;
       authListener.subscription.unsubscribe();
     };
   }, []);
