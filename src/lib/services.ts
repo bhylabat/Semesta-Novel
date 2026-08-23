@@ -80,7 +80,7 @@ export async function fetchNovelBySlug(slug: string): Promise<Novel | null> {
     .select('genres(*)')
     .eq('novel_id', novel.id);
 
-  novel.genres = (ngData || []).map((r: { genres: Genre }) => r.genres);
+  novel.genres = (ngData || []).flatMap((r: { genres: Genre[] }) => r.genres || []);
 
   const { data: latestChapter } = await supabase
     .from('chapters')

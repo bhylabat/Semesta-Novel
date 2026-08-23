@@ -168,7 +168,7 @@ export default function Library() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
             {bookmarks.map((b) => (
               <div key={b.id} className="relative group">
-                <NovelCard novel={b.novel} />
+                {b.novel && <NovelCard novel={b.novel} />}
                 <button
                   onClick={() => setConfirmDelete({ type: 'bookmark', novelId: b.novel_id })}
                   className="absolute top-2 right-2 z-20 p-1.5 rounded-lg bg-bg/80 backdrop-blur-sm text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"

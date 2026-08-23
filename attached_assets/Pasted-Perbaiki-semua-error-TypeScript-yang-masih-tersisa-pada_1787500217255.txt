@@ -1,0 +1,84 @@
+Perbaiki semua error TypeScript yang masih tersisa pada project Semesta Novel.
+
+STATUS SAAT INI:
+
+- "npm run build" berhasil.
+- Workflow tetap berjalan di port 5000.
+- Route "/profile" untuk user yang belum login sudah benar diarahkan ke halaman Login.
+- Tidak ada runtime error baru pada Preview.
+- Namun "npm run typecheck" masih melaporkan 3 error lama pada:
+  - "src/lib/services.ts"
+  - "src/pages/Home.tsx"
+  - "src/pages/Library.tsx"
+
+TUGAS:
+
+1. Perbaiki "src/lib/services.ts"
+
+Periksa error TypeScript yang muncul pada file tersebut.
+
+- Cari akar masalahnya.
+- Perbaiki typing yang benar.
+- Jangan menggunakan "any" hanya untuk menghilangkan error kecuali benar-benar diperlukan.
+- Jangan mengubah behavior/fungsi service yang sudah berjalan.
+- Pastikan query Supabase tetap bekerja seperti sebelumnya.
+
+2. Perbaiki "src/pages/Home.tsx"
+
+Periksa error TypeScript pada Home.
+
+- Sesuaikan type/interface dengan data yang sebenarnya digunakan.
+- Jangan mengubah desain atau fitur Home.
+- Jangan menghapus komponen atau data.
+- Pastikan halaman Home tetap berfungsi seperti sebelumnya.
+
+3. Perbaiki "src/pages/Library.tsx"
+
+Periksa error TypeScript pada Library.
+
+- Perbaiki typing yang menyebabkan error.
+- Pertahankan seluruh fungsi Library.
+- Jangan mengubah behavior bookmark/library.
+- Jangan mengubah database/schema.
+
+ATURAN PENTING
+
+- Jangan mengubah database Supabase.
+- Jangan membuat migration baru.
+- Jangan mengubah schema.
+- Jangan mengubah authentication.
+- Jangan mengubah sistem komentar.
+- Jangan mengubah routing Profile yang sudah berhasil.
+- Jangan melakukan redesign.
+- Jangan menghapus fitur.
+- Jangan mengubah fungsi hanya demi membuat TypeScript lolos.
+- Pertahankan semua UI yang sekarang.
+
+VERIFIKASI
+
+Setelah memperbaiki ketiga error:
+
+1. Jalankan:
+   "npm run typecheck"
+
+2. Pastikan hasilnya:
+   0 TypeScript errors
+
+3. Jalankan:
+   "npm run build"
+
+4. Pastikan build tetap berhasil.
+
+5. Periksa Preview dan pastikan:
+   
+   - Home tetap berjalan.
+   - Library tetap berjalan.
+   - Profile tetap berjalan.
+   - User yang belum login tetap diarahkan ke Login.
+   - Tidak ada runtime error baru.
+
+Jika ada error tambahan yang muncul akibat perbaikan, perbaiki juga sampai "npm run typecheck" benar-benar 0 error.
+
+Jangan berhenti hanya karena "npm run build" berhasil. Target akhir adalah:
+
+TypeScript: 0 errors + Build: sukses + Runtime: tidak ada error.

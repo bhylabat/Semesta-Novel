@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Star, Eye, Play, Info, ChevronRight, ChevronLeft,
-  Flame, Clock, BookmarkOpen, BookOpen, Calendar,
+  Flame, Clock, BookOpen, Calendar,
   Sword, Sparkles, Heart, RefreshCw, Hand, Rocket,
   Ghost, Laugh, Coffee, Search, Drama, Compass,
   Users, Shield, Award, Zap
