@@ -1,0 +1,94 @@
+Lakukan final UI polish untuk website Semesta Novel dengan fokus pada tampilan Desktop dan Mobile.
+
+PENTING:
+
+- Jangan mengubah fungsi yang sudah berjalan.
+- Jangan mengubah database atau schema Supabase.
+- Jangan mengubah struktur data.
+- Jangan mengubah sistem authentication.
+- Jangan mengubah sistem komentar Novel maupun komentar Bab.
+- Jangan mengubah routing.
+- Jangan menghapus fitur yang sudah ada.
+- Jangan mengubah fungsi navigasi Bab.
+- Fokus hanya pada UI/UX, layout, spacing, responsive behavior, dan visual consistency.
+
+1. Desktop
+
+Periksa seluruh halaman pada ukuran desktop dan pastikan:
+
+- Layout tidak terlalu melebar.
+- Container memiliki max-width yang nyaman.
+- Sidebar/header/navigation tidak bertabrakan.
+- Grid novel terlihat rapi.
+- Card novel memiliki ukuran yang konsisten.
+- Tombol dan action tidak keluar dari container.
+- Text tidak terpotong secara tidak wajar.
+- Section memiliki spacing yang konsisten.
+- Reader nyaman dibaca pada layar lebar.
+- Navigasi Bab tampil rapi.
+- Komentar Novel dan Komentar Bab memiliki posisi yang benar.
+- Tidak ada horizontal overflow.
+
+2. Mobile
+
+Periksa seluruh halaman pada ukuran mobile, terutama sekitar 320px, 375px, dan 390px.
+
+Pastikan:
+
+- Tidak ada horizontal scrolling.
+- Semua container mengikuti lebar layar.
+- Card novel tidak keluar layar.
+- Grid berubah menjadi layout yang sesuai untuk mobile.
+- Header dan navigation tidak bertabrakan.
+- Tombol tidak terlalu kecil untuk disentuh.
+- Text dan judul tidak terpotong.
+- Spacing tidak terlalu besar atau terlalu sempit.
+- Search bar responsive.
+- Detail Novel nyaman digunakan di mobile.
+- Daftar Bab mudah disentuh.
+- Reader nyaman dibaca.
+- Tombol Bab Sebelumnya / Daftar Bab / Bab Berikutnya tersusun rapi.
+- Komentar Bab tetap berada tepat DI BAWAH tombol navigasi Bab.
+- Komentar Novel tetap berada pada posisi dan fungsi sebelumnya.
+- Tidak ada elemen yang keluar dari viewport.
+
+3. Responsive behavior
+
+Gunakan responsive CSS/Tailwind yang sudah ada.
+
+Pastikan perubahan antara:
+Desktop → Tablet → Mobile
+
+terlihat natural dan tidak merusak layout.
+
+Jangan hanya memperbaiki satu halaman. Periksa seluruh halaman utama:
+
+- Home
+- Novel Catalog
+- Novel Detail
+- Chapter List
+- Reader
+- Search
+- Ranking
+- Library
+- History
+- Profile
+- Settings
+- Login
+- Register
+- seluruh halaman Admin
+
+4. Final verification
+
+Setelah melakukan perubahan:
+
+1. Jalankan TypeScript check.
+2. Jalankan production build.
+3. Periksa kembali responsive layout.
+4. Pastikan tidak ada horizontal overflow.
+5. Pastikan tidak ada fungsi yang rusak.
+6. Pastikan tidak ada error baru.
+
+Jika menemukan masalah UI, perbaiki langsung.
+
+Jangan membuat fitur baru. Jangan mengubah fungsi aplikasi. Fokus hanya pada final polish responsive Desktop + Mobile.

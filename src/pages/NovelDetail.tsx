@@ -113,7 +113,7 @@ export default function NovelDetail() {
   );
 
   return (
-    <div className="max-w-5xl mx-auto px-4 md:px-6 py-4 md:py-8">
+    <div className="w-full max-w-5xl mx-auto px-4 md:px-6 py-4 md:py-8">
       {/* Banner */}
       <div className="relative h-32 md:h-56 rounded-3xl overflow-hidden mb-6">
         <div className="absolute inset-0" style={{ background: getBannerGradient(novel.banner_url) }} />
@@ -143,7 +143,7 @@ export default function NovelDetail() {
           <p className="text-sm text-muted mb-4">oleh <span className="text-primary-300">{novel.author}</span></p>
 
           {/* Stats */}
-          <div className="grid grid-cols-4 gap-3 mb-5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             <div className="card p-3 text-center">
               <div className="flex items-center justify-center gap-1 text-rating mb-1">
                 <Star className="h-4 w-4 fill-rating" />
@@ -175,16 +175,16 @@ export default function NovelDetail() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex flex-wrap gap-3">
-            <Link to={`/read/${novel.slug}/1`} className="btn-primary">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Link to={`/read/${novel.slug}/1`} className="btn-primary w-full sm:w-auto">
               <Play className="h-4 w-4 fill-white" />
               Baca Sekarang
             </Link>
-            <button onClick={handleBookmark} className={`btn-secondary ${bookmarked ? 'text-primary-300' : ''}`}>
+            <button onClick={handleBookmark} className={`btn-secondary w-full sm:w-auto ${bookmarked ? 'text-primary-300' : ''}`}>
               <Bookmark className={`h-4 w-4 ${bookmarked ? 'fill-primary-300' : ''}`} />
               {bookmarked ? 'Tersimpan' : 'Tambah ke Rak Buku'}
             </button>
-            <button onClick={handleShare} className="btn-secondary">
+            <button onClick={handleShare} className="btn-secondary w-full sm:w-auto">
               <Share2 className="h-4 w-4" />
               Bagikan
             </button>
@@ -209,7 +209,7 @@ export default function NovelDetail() {
           </Link>
         </div>
 
-        <div className="flex gap-3 mb-4">
+        <div className="flex flex-col sm:flex-row gap-3 mb-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
             <input
@@ -220,7 +220,7 @@ export default function NovelDetail() {
               className="input pl-9 w-full"
             />
           </div>
-          <button onClick={() => setChapterSort(chapterSort === 'desc' ? 'asc' : 'desc')} className="btn-secondary px-3">
+          <button onClick={() => setChapterSort(chapterSort === 'desc' ? 'asc' : 'desc')} className="btn-secondary self-end sm:self-auto px-3">
             <ArrowUpDown className="h-4 w-4" />
           </button>
         </div>
@@ -233,7 +233,7 @@ export default function NovelDetail() {
               <Link
                 key={chapter.id}
                 to={`/read/${novel.slug}/${chapter.chapter_number}`}
-                className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors group"
+                className="flex items-center justify-between gap-3 p-3 sm:p-4 hover:bg-white/5 transition-colors group"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-white group-hover:text-primary-300 transition-colors">
@@ -246,7 +246,7 @@ export default function NovelDetail() {
                     <Eye className="h-3 w-3" />
                     {formatViews(chapter.views)}
                   </span>
-                  <span className="text-xs text-muted">{formatDate(chapter.created_at)}</span>
+                   <span className="hidden sm:inline text-xs text-muted">{formatDate(chapter.created_at)}</span>
                   <ChevronRight className="h-4 w-4 text-muted group-hover:text-primary-300" />
                 </div>
               </Link>

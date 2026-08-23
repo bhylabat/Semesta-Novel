@@ -249,7 +249,7 @@ export default function Reader() {
       )}
 
       {/* Reader Content */}
-      <div ref={contentRef} className="max-w-3xl mx-auto px-4 sm:px-6 py-8 md:py-12">
+      <div ref={contentRef} className="w-full max-w-3xl mx-auto px-4 sm:px-6 py-8 md:py-12">
         <div className="mb-8 text-center">
           <p className="text-xs uppercase tracking-wider opacity-50 mb-2">{novel.title}</p>
           <h1 className="text-2xl md:text-3xl font-bold mb-2">Bab {chapter.chapter_number}</h1>
@@ -267,18 +267,6 @@ export default function Reader() {
           {paragraphs.map((para, i) => (
             <p key={i} className="mb-4 text-justify">{para}</p>
           ))}
-        </div>
-
-        {/* Komentar Bab */}
-        <div className="reader-content">
-          <CommentSection
-            novelId={novel.id}
-            chapterId={chapter.id}
-            title={`Komentar Bab ${chapter.chapter_number}`}
-            placeholder="Tulis komentar tentang Bab ini..."
-            emptyTitle="Belum ada komentar di Bab ini."
-            emptyMessage="Jadilah yang pertama berkomentar."
-          />
         </div>
 
         {/* Bottom Navigation */}
@@ -312,6 +300,18 @@ export default function Reader() {
               Kamu telah mencapai akhir dari novel ini.
             </p>
           )}
+        </div>
+
+        {/* Komentar Bab */}
+        <div className="reader-content mt-8">
+          <CommentSection
+            novelId={novel.id}
+            chapterId={chapter.id}
+            title={`Komentar Bab ${chapter.chapter_number}`}
+            placeholder="Tulis komentar tentang Bab ini..."
+            emptyTitle="Belum ada komentar di Bab ini."
+            emptyMessage="Jadilah yang pertama berkomentar."
+          />
         </div>
       </div>
     </div>

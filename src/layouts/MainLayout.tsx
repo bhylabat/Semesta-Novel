@@ -158,7 +158,7 @@ export default function MainLayout() {
       </header>
 
       {/* Main content */}
-      <main className="pt-14 md:pt-16 pb-20 md:pb-8">
+      <main className="pt-14 md:pt-16 pb-20 md:pb-8 overflow-x-clip">
         <Outlet />
       </main>
 
@@ -172,7 +172,7 @@ export default function MainLayout() {
               <Link
                 key={item.label}
                 to={item.path}
-                className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-colors ${
+                className={`flex min-h-11 flex-col items-center justify-center gap-0.5 px-1.5 sm:px-2 py-1.5 rounded-lg transition-colors ${
                   active ? 'text-primary-400' : 'text-muted'
                 }`}
               >

@@ -74,7 +74,7 @@ export default function ChapterList() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 md:px-6 py-4 md:py-8">
+    <div className="w-full max-w-3xl mx-auto px-4 md:px-6 py-4 md:py-8">
       <Link to={`/novel/${novel.slug}`} className="flex items-center gap-1 text-sm text-muted hover:text-white mb-4">
         <ChevronLeft className="h-4 w-4" />
         Kembali ke {novel.title}
@@ -84,7 +84,7 @@ export default function ChapterList() {
       <p className="text-sm text-muted mb-6">{total} bab tersedia</p>
 
       {/* Search & Sort */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
           <input
@@ -95,7 +95,7 @@ export default function ChapterList() {
             className="input pl-9 w-full"
           />
         </div>
-        <button onClick={() => setSort(sort === 'desc' ? 'asc' : 'desc')} className="btn-secondary px-3">
+        <button onClick={() => setSort(sort === 'desc' ? 'asc' : 'desc')} className="btn-secondary self-end sm:self-auto px-3">
           <ArrowUpDown className="h-4 w-4" />
           <span className="hidden sm:inline">{sort === 'desc' ? 'Terbaru' : 'Terlama'}</span>
         </button>
@@ -115,7 +115,7 @@ export default function ChapterList() {
                 <Link
                   key={chapter.id}
                   to={`/read/${novel.slug}/${chapter.chapter_number}`}
-                  className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors group"
+                  className="flex items-center justify-between gap-3 p-3 sm:p-4 hover:bg-white/5 transition-colors group"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -131,7 +131,7 @@ export default function ChapterList() {
                       <Eye className="h-3 w-3" />
                       {formatViews(chapter.views)}
                     </span>
-                    <span className="text-xs text-muted">{formatDate(chapter.created_at)}</span>
+                    <span className="hidden sm:inline text-xs text-muted">{formatDate(chapter.created_at)}</span>
                     <ChevronRight className="h-4 w-4 text-muted group-hover:text-primary-300" />
                   </div>
                 </Link>
