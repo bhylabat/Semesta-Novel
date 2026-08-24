@@ -458,8 +458,28 @@ export async function adminUpdateProfileRole(userId: string, role: string): Prom
 
 export async function adminCreateNovel(novel: Partial<Novel>): Promise<Novel | null> {
   if (!isSupabaseConfigured) return null;
-  const { data, error } = await supabase.from('novels').insert(novel).select('*').maybeSingle();
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+
+  if (userError) throw userError;
+
+  const user = userData.user;
+
+  if (!user) {
+    throw new Error('User belum login');
+  }
+
+  const { data, error } = await supabase
+    .from('novels')
+    .insert({
+      ...novel,
+      author_id: user.id,
+    })
+    .select('*')
+    .maybeSingle();
+
   if (error) throw error;
+
   return data as Novel | null;
 }
 
