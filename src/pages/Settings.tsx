@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Moon, Sun, Type, Globe, Bell } from 'lucide-react';
-import { useAuth } from '@/lib/auth';
+import { Type, Globe, Bell } from 'lucide-react';
+import type { ReaderTheme } from '@/types';
+import { useAuth } from '@/lib/auth-context';
 import { getReaderSettings, saveReaderSettings } from '@/lib/guest';
 
 export default function Settings() {
@@ -38,7 +39,7 @@ export default function Settings() {
               ].map((t) => (
                 <button
                   key={t.value}
-                  onClick={() => updateReader({ theme: t.value as any })}
+                  onClick={() => updateReader({ theme: t.value as ReaderTheme })}
                   className={`py-2 rounded-lg text-sm transition-colors ${
                     readerSettings.theme === t.value ? 'bg-primary text-white' : 'bg-white/5 text-muted hover:bg-white/10'
                   }`}

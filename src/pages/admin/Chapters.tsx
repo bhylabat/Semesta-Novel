@@ -22,7 +22,7 @@ export default function AdminChapters() {
     if (data.length > 0 && !selectedNovel) {
       setSelectedNovel(data[0].id);
     }
-  }, []);
+  }, [selectedNovel]);
 
   const loadChapters = useCallback(async () => {
     if (!selectedNovel) return;
@@ -66,7 +66,8 @@ export default function AdminChapters() {
       }
       setShowForm(false);
       loadChapters();
-    } catch {
+    } catch (error) {
+      console.error('Failed to save chapter:', error);
     } finally {
       setSaving(false);
     }

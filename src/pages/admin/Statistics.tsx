@@ -18,7 +18,8 @@ export default function AdminStatistics() {
       const { count: chapterCount } = await supabase.from('chapters').select('*', { count: 'exact', head: true });
       const totalViews = novelsData.data.reduce((sum, n) => sum + n.views, 0);
       setStats({ novels: novelsData.total, chapters: chapterCount || 0, users: profiles.length, views: totalViews, comments: comments.length });
-    } catch {
+    } catch (error) {
+      console.error('Failed to load statistics:', error);
     } finally {
       setLoading(false);
     }

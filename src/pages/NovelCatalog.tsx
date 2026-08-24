@@ -23,6 +23,8 @@ const statusOptions = [
   { value: 'hiatus', label: 'Hiatus' },
 ];
 
+type NovelSort = 'terbaru' | 'terpopuler' | 'rating' | 'az' | 'chapter';
+
 export default function NovelCatalog() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [novels, setNovels] = useState<Novel[]>([]);
@@ -34,7 +36,7 @@ export default function NovelCatalog() {
   const search = searchParams.get('q') || '';
   const genre = searchParams.get('genre') || 'all';
   const status = searchParams.get('status') || 'all';
-  const sort = (searchParams.get('sort') as any) || 'terbaru';
+  const sort = (searchParams.get('sort') as NovelSort) || 'terbaru';
 
   const loadData = useCallback(async () => {
     setLoading(true);

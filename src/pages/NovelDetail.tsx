@@ -1,22 +1,20 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import {
   Star, Eye, BookOpen, Bookmark, Share2, Play,
-  Calendar, ChevronRight, Search, ArrowUpDown
+  ChevronRight, Search, ArrowUpDown
 } from 'lucide-react';
 import type { Novel, Chapter } from '@/types';
-import { fetchNovelBySlug, fetchLatestChapters, fetchChapters, fetchSimilarNovels, isBookmarked, toggleBookmark } from '@/lib/services';
+import { fetchNovelBySlug, fetchLatestChapters, fetchSimilarNovels, isBookmarked, toggleBookmark } from '@/lib/services';
 import { getCoverGradient, getBannerGradient, formatViews, formatDate } from '@/lib/utils';
-import { useAuth } from '@/lib/auth';
+import { useAuth } from '@/lib/auth-context';
 import { isGuestBookmarked, toggleGuestBookmark } from '@/lib/guest';
 import NovelCard from '@/components/NovelCard';
 import CommentSection from '@/components/CommentSection';
 import ErrorState from '@/components/ErrorState';
-import { slugify } from '@/lib/utils';
 
 export default function NovelDetail() {
   const { slug } = useParams();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [novel, setNovel] = useState<Novel | null>(null);
   const [latestChapters, setLatestChapters] = useState<Chapter[]>([]);

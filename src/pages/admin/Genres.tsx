@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Plus, Trash2, Tag, X, Loader2 } from 'lucide-react';
 import type { Genre } from '@/types';
-import { fetchGenres, adminUpdateReportStatus } from '@/lib/services';
+import { fetchGenres } from '@/lib/services';
 import { supabase } from '@/lib/supabase';
 import { slugify } from '@/lib/utils';
 
@@ -18,7 +18,8 @@ export default function AdminGenres() {
     try {
       const data = await fetchGenres();
       setGenres(data);
-    } catch {
+    } catch (error) {
+      console.error('Failed to load genres:', error);
     } finally {
       setLoading(false);
     }
@@ -36,7 +37,8 @@ export default function AdminGenres() {
       setShowForm(false);
       setForm({ name: '', slug: '', icon: '' });
       loadData();
-    } catch {
+    } catch (error) {
+      console.error('Failed to save genre:', error);
     } finally {
       setSaving(false);
     }

@@ -2,11 +2,9 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import {
   Home, BookOpen, Library, History, User,
-  Search, Bell, Moon, Sun, Menu, X,
-  Flame, TrendingUp, Clock, Star, Users,
-  Sparkles, LogIn, UserPlus
+  Search, Bell, Flame, TrendingUp, Clock, LogIn, UserPlus
 } from 'lucide-react';
-import { useAuth } from '@/lib/auth';
+import { useAuth } from '@/lib/auth-context';
 
 const navItems = [
   { label: 'Beranda', path: '/', icon: Home },

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Search as SearchIcon, X } from 'lucide-react';
 import type { Novel } from '@/types';
 import { fetchNovels } from '@/lib/services';
@@ -37,17 +37,19 @@ export default function Search() {
   }, []);
 
   useEffect(() => {
-    fetchNovels({ sort: 'terpopuler', limit: 6 }).then(({ data }) => setPopular(data)).catch(() => {});
+    fetchNovels({ sort: 'terpopuler', limit: 6 })
+      .then(({ data }) => setPopular(data))
+      .catch((error) => console.error('Failed to load popular novels:', error));
     if (query) {
       setInput(query);
       search(query);
     }
-  }, []);
+  }, [query, search]);
 
   useEffect(() => {
     if (query !== input) setInput(query);
     if (query) search(query);
-  }, [query]);
+  }, [query, input, search]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

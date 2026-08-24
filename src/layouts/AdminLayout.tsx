@@ -5,7 +5,7 @@ import {
   MessageSquare, Tag, Flag, BarChart3, Settings,
   Menu, X, LogOut, Home
 } from 'lucide-react';
-import { useAuth } from '@/lib/auth';
+import { useAuth } from '@/lib/auth-context';
 
 const adminNavItems = [
   { label: 'Dashboard', path: '/admin', icon: LayoutDashboard },

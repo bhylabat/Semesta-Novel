@@ -25,7 +25,8 @@ export default function AdminNovels() {
       const [novelData, genreData] = await Promise.all([fetchNovels({ limit: 100 }), fetchGenres()]);
       setNovels(novelData.data);
       setGenres(genreData);
-    } catch {
+    } catch (error) {
+      console.error('Failed to load novels:', error);
     } finally {
       setLoading(false);
     }
@@ -75,7 +76,8 @@ export default function AdminNovels() {
       }
       setShowForm(false);
       loadData();
-    } catch {
+    } catch (error) {
+      console.error('Failed to save novel:', error);
     } finally {
       setSaving(false);
     }

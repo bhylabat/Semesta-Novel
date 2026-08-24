@@ -1,5 +1,3 @@
-import type { Novel, Chapter, ReadingHistory, Bookmark } from '@/types';
-
 const BOOKMARKS_KEY = 'semesta_bookmarks';
 const HISTORY_KEY = 'semesta_history';
 const READER_SETTINGS_KEY = 'semesta_reader_settings';
@@ -86,7 +84,9 @@ export function getReaderSettings(): StoredReaderSettings {
   try {
     const stored = localStorage.getItem(READER_SETTINGS_KEY);
     if (stored) return JSON.parse(stored);
-  } catch {}
+  } catch (error) {
+    console.error('Failed to load reader settings:', error);
+  }
   return {
     fontSize: 18,
     lineHeight: 1.8,

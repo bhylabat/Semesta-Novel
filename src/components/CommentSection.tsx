@@ -9,7 +9,7 @@ import {
   addComment, updateComment, deleteComment,
   toggleCommentLike, reportComment, fetchLikedCommentIds,
 } from '@/lib/services';
-import { useAuth } from '@/lib/auth';
+import { useAuth } from '@/lib/auth-context';
 import { formatDate } from '@/lib/utils';
 
 interface CommentSectionProps {

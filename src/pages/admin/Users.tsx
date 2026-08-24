@@ -16,7 +16,8 @@ export default function AdminUsers() {
     try {
       const data = await adminFetchAllProfiles();
       setUsers(data);
-    } catch {
+    } catch (error) {
+      console.error('Failed to load users:', error);
     } finally {
       setLoading(false);
     }

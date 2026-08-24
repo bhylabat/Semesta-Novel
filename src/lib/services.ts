@@ -477,14 +477,26 @@ export async function adminDeleteComment(id: string): Promise<void> {
   await supabase.from('comments').delete().eq('id', id);
 }
 
-export async function adminFetchReports(): Promise<any[]> {
+export interface AdminReport {
+  id: string;
+  created_at: string;
+  reason: string;
+  status: string;
+  profile?: { username: string } | null;
+  comment?: {
+    content: string;
+    profile?: { username: string } | null;
+  } | null;
+}
+
+export async function adminFetchReports(): Promise<AdminReport[]> {
   if (!isSupabaseConfigured) return [];
   const { data, error } = await supabase
     .from('reports')
     .select('*, comment:comments(*, profile:profiles(*)), profile:profiles(*)')
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return data || [];
+  return (data || []) as AdminReport[];
 }
 
 export async function adminUpdateReportStatus(id: string, status: string): Promise<void> {

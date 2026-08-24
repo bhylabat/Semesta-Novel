@@ -4,7 +4,7 @@ import {
   BookOpen, Bookmark, History, MessageSquare, Settings as SettingsIcon,
   LogOut, Calendar, Star, Library, ChevronRight, Shield
 } from 'lucide-react';
-import { useAuth } from '@/lib/auth';
+import { useAuth } from '@/lib/auth-context';
 import type { Profile as ProfileType } from '@/types';
 import { fetchBookmarks, fetchReadingHistory } from '@/lib/services';
 import { getGuestBookmarks, getGuestHistory } from '@/lib/guest';

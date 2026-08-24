@@ -4,8 +4,8 @@ import { Bookmark, BookOpen, CheckCircle2, Play, Trash2, X } from 'lucide-react'
 import type { Novel, Bookmark as BookmarkType, ReadingHistory } from '@/types';
 import { fetchBookmarks, fetchReadingHistory, toggleBookmark, deleteReadingHistory, fetchNovelBySlug } from '@/lib/services';
 import { getGuestBookmarks, toggleGuestBookmark, getGuestHistory, deleteGuestHistory } from '@/lib/guest';
-import { getCoverGradient, formatViews } from '@/lib/utils';
-import { useAuth } from '@/lib/auth';
+import { getCoverGradient } from '@/lib/utils';
+import { useAuth } from '@/lib/auth-context';
 import NovelCard from '@/components/NovelCard';
 import EmptyState from '@/components/EmptyState';
 import ErrorState from '@/components/ErrorState';

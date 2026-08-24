@@ -8,7 +8,7 @@ import {
 import type { Novel, Chapter } from '@/types';
 import { fetchNovelBySlug, fetchChapterByNumber, fetchChapters, updateReadingHistory } from '@/lib/services';
 import { getReaderSettings, saveReaderSettings, type StoredReaderSettings, updateGuestHistory } from '@/lib/guest';
-import { useAuth } from '@/lib/auth';
+import { useAuth } from '@/lib/auth-context';
 import ErrorState from '@/components/ErrorState';
 import CommentSection from '@/components/CommentSection';
 

@@ -14,7 +14,8 @@ export default function AdminComments() {
     try {
       const data = await adminFetchAllComments();
       setComments(data);
-    } catch {
+    } catch (error) {
+      console.error('Failed to load comments:', error);
     } finally {
       setLoading(false);
     }

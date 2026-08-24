@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { BookOpen, FileText, Users, Eye, MessageSquare, TrendingUp } from 'lucide-react';
-import { fetchNovels, fetchGenres, adminFetchAllProfiles, adminFetchAllComments } from '@/lib/services';
+import { fetchNovels, adminFetchAllProfiles, adminFetchAllComments } from '@/lib/services';
 import { supabase } from '@/lib/supabase';
 
 export default function AdminDashboard() {
@@ -29,7 +29,8 @@ export default function AdminDashboard() {
         views: totalViews,
         comments: comments.length,
       });
-    } catch {
+    } catch (error) {
+      console.error('Failed to load dashboard data:', error);
     } finally {
       setLoading(false);
     }

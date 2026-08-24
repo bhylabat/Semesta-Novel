@@ -35,7 +35,7 @@ export default function Ranking() {
       };
       const { data } = await fetchNovels({ sort: sortMap[type], limit: 50 });
 
-      let sorted = [...data];
+      const sorted = [...data];
       if (type === 'rating') sorted.sort((a, b) => b.rating - a.rating);
       else if (type === 'views') sorted.sort((a, b) => b.views - a.views);
       else if (type === 'bookmark') sorted.sort((a, b) => b.bookmark_count - a.bookmark_count);
@@ -52,8 +52,6 @@ export default function Ranking() {
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  const currentType = rankingTypes.find((t) => t.value === type)!;
 
   return (
     <div className="max-w-4xl mx-auto px-4 md:px-6 py-4 md:py-8">

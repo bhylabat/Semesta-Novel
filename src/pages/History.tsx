@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { History as HistoryIcon, Play, Trash2, X } from 'lucide-react';
+import { History as HistoryIcon, Play, Trash2 } from 'lucide-react';
 import type { ReadingHistory } from '@/types';
 import { fetchReadingHistory, deleteReadingHistory, fetchNovelBySlug } from '@/lib/services';
 import { getGuestHistory, deleteGuestHistory } from '@/lib/guest';
 import { getCoverGradient, formatDate } from '@/lib/utils';
-import { useAuth } from '@/lib/auth';
+import { useAuth } from '@/lib/auth-context';
 import EmptyState from '@/components/EmptyState';
 import ErrorState from '@/components/ErrorState';
 

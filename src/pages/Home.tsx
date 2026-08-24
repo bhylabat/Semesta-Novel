@@ -2,18 +2,17 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Star, Eye, Play, Info, ChevronRight, ChevronLeft,
-  Flame, Clock, BookOpen, Calendar,
+  Flame, BookOpen, Calendar,
   Sword, Sparkles, Heart, RefreshCw, Hand, Rocket,
   Ghost, Laugh, Coffee, Search, Drama, Compass,
-  Users, Shield, Award, Zap
+  Users, Award
 } from 'lucide-react';
 import type { Novel, Genre, ReadingHistory } from '@/types';
 import { fetchNovels, fetchGenres, fetchNovelBySlug, fetchReadingHistory } from '@/lib/services';
-import { getCoverGradient, getBannerGradient, formatViews, formatDate } from '@/lib/utils';
-import { useAuth } from '@/lib/auth';
+import { getCoverGradient, getBannerGradient, formatViews } from '@/lib/utils';
+import { useAuth } from '@/lib/auth-context';
 import { getGuestHistory } from '@/lib/guest';
 import NovelCard, { NovelCardSkeleton } from '@/components/NovelCard';
-import NovelHorizontalCard from '@/components/NovelHorizontalCard';
 import Section from '@/components/Section';
 import ErrorState from '@/components/ErrorState';
 

@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Flag, Check, X } from 'lucide-react';
-import { adminFetchReports, adminUpdateReportStatus } from '@/lib/services';
+import { adminFetchReports, adminUpdateReportStatus, type AdminReport } from '@/lib/services';
 import { formatDate } from '@/lib/utils';
 
 export default function AdminReports() {
-  const [reports, setReports] = useState<any[]>([]);
+  const [reports, setReports] = useState<AdminReport[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
@@ -12,7 +12,8 @@ export default function AdminReports() {
     try {
       const data = await adminFetchReports();
       setReports(data);
-    } catch {
+    } catch (error) {
+      console.error('Failed to load reports:', error);
     } finally {
       setLoading(false);
     }
