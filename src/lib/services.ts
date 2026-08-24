@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import type { Novel, Chapter, Genre, Bookmark, ReadingHistory, Comment, Notification, Profile } from '@/types';
+import type { Novel, Chapter, Genre, Bookmark, ReadingHistory, Comment, Notification, Profile, UserRole } from '@/types';
 
 // ---- Novels ----
 
@@ -287,28 +287,45 @@ export async function deleteReadingHistory(userId: string, novelId: string): Pro
 // Novel comments: chapter_id = NULL
 // Chapter comments: chapter_id = specific chapter
 
+async function attachCommentProfiles(comments: Comment[]): Promise<Comment[]> {
+  if (comments.length === 0) return comments;
+
+  const userIds = [...new Set(comments.map((comment) => comment.user_id))];
+  const { data: profiles, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', userIds);
+  if (error) throw error;
+
+  const profilesById = new Map((profiles || []).map((profile) => [profile.id, profile as Profile]));
+  return comments.map((comment) => ({
+    ...comment,
+    profile: profilesById.get(comment.user_id),
+  }));
+}
+
 export async function fetchNovelComments(novelId: string): Promise<Comment[]> {
   if (!isSupabaseConfigured) return [];
   const { data, error } = await supabase
     .from('comments')
-    .select('*, profile:profiles(*)')
+    .select('*')
     .eq('novel_id', novelId)
     .is('chapter_id', null)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return (data || []) as Comment[];
+  return attachCommentProfiles((data || []) as Comment[]);
 }
 
 export async function fetchChapterComments(novelId: string, chapterId: string): Promise<Comment[]> {
   if (!isSupabaseConfigured) return [];
   const { data, error } = await supabase
     .from('comments')
-    .select('*, profile:profiles(*)')
+    .select('*')
     .eq('novel_id', novelId)
     .eq('chapter_id', chapterId)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return (data || []) as Comment[];
+  return attachCommentProfiles((data || []) as Comment[]);
 }
 
 export async function addComment(
@@ -319,62 +336,72 @@ export async function addComment(
   parentId?: string
 ): Promise<void> {
   if (!isSupabaseConfigured) return;
-  await supabase.from('comments').insert({
+  const { error } = await supabase.from('comments').insert({
     user_id: userId,
     novel_id: novelId,
     chapter_id: chapterId,
     parent_id: parentId || null,
     content,
   });
+  if (error) throw error;
 }
 
 export async function updateComment(commentId: string, content: string): Promise<void> {
   if (!isSupabaseConfigured) return;
-  await supabase.from('comments').update({ content }).eq('id', commentId);
+  const { error } = await supabase.from('comments').update({ content }).eq('id', commentId);
+  if (error) throw error;
 }
 
 export async function deleteComment(commentId: string): Promise<void> {
   if (!isSupabaseConfigured) return;
-  await supabase.from('comments').delete().eq('id', commentId);
+  const { error } = await supabase.from('comments').delete().eq('id', commentId);
+  if (error) throw error;
 }
 
 export async function toggleCommentLike(userId: string, commentId: string): Promise<boolean> {
   if (!isSupabaseConfigured) return false;
 
-  const { data: existing } = await supabase
+  const { data: existing, error: lookupError } = await supabase
     .from('comment_likes')
     .select('id')
     .eq('user_id', userId)
     .eq('comment_id', commentId)
     .maybeSingle();
+  if (lookupError) throw lookupError;
 
   if (existing) {
-    await supabase.from('comment_likes').delete().eq('id', existing.id);
-    await supabase.rpc('decrement_comment_likes', { comment_id: commentId });
+    const { error: deleteError } = await supabase.from('comment_likes').delete().eq('id', existing.id);
+    if (deleteError) throw deleteError;
+    const { error: decrementError } = await supabase.rpc('decrement_comment_likes', { comment_id: commentId });
+    if (decrementError) throw decrementError;
     return false;
   } else {
-    await supabase.from('comment_likes').insert({ user_id: userId, comment_id: commentId });
-    await supabase.rpc('increment_comment_likes', { comment_id: commentId });
+    const { error: insertError } = await supabase.from('comment_likes').insert({ user_id: userId, comment_id: commentId });
+    if (insertError) throw insertError;
+    const { error: incrementError } = await supabase.rpc('increment_comment_likes', { comment_id: commentId });
+    if (incrementError) throw incrementError;
     return true;
   }
 }
 
 export async function reportComment(userId: string, commentId: string, reason: string): Promise<void> {
   if (!isSupabaseConfigured) return;
-  await supabase.from('reports').insert({
+  const { error } = await supabase.from('reports').insert({
     user_id: userId,
     comment_id: commentId,
     reason,
   });
+  if (error) throw error;
 }
 
 export async function fetchLikedCommentIds(userId: string, commentIds: string[]): Promise<Set<string>> {
   if (!isSupabaseConfigured || commentIds.length === 0) return new Set();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('comment_likes')
     .select('comment_id')
     .eq('user_id', userId)
     .in('comment_id', commentIds);
+  if (error) throw error;
   return new Set((data || []).map((r: { comment_id: string }) => r.comment_id));
 }
 
@@ -409,9 +436,10 @@ export async function fetchProfile(userId: string): Promise<Profile | null> {
   return data as Profile | null;
 }
 
-export async function createProfile(userId: string, email: string, username: string): Promise<void> {
+export async function createProfile(userId: string, email: string, username: string, role: UserRole = 'reader'): Promise<void> {
   if (!isSupabaseConfigured) return;
-  await supabase.from('profiles').insert({ id: userId, email, username });
+  const { error } = await supabase.from('profiles').insert({ id: userId, email, username, role });
+  if (error) throw error;
 }
 
 // ---- Admin ----
@@ -466,10 +494,10 @@ export async function adminFetchAllComments(): Promise<Comment[]> {
   if (!isSupabaseConfigured) return [];
   const { data, error } = await supabase
     .from('comments')
-    .select('*, profile:profiles(*)')
+    .select('*')
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return (data || []) as Comment[];
+  return attachCommentProfiles((data || []) as Comment[]);
 }
 
 export async function adminDeleteComment(id: string): Promise<void> {
@@ -479,11 +507,13 @@ export async function adminDeleteComment(id: string): Promise<void> {
 
 export interface AdminReport {
   id: string;
+  user_id: string;
   created_at: string;
   reason: string;
   status: string;
   profile?: { username: string } | null;
   comment?: {
+    user_id: string;
     content: string;
     profile?: { username: string } | null;
   } | null;
@@ -493,10 +523,38 @@ export async function adminFetchReports(): Promise<AdminReport[]> {
   if (!isSupabaseConfigured) return [];
   const { data, error } = await supabase
     .from('reports')
-    .select('*, comment:comments(*, profile:profiles(*)), profile:profiles(*)')
+    .select('*, comment:comments(*)')
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return (data || []) as AdminReport[];
+
+  const reports = (data || []) as AdminReport[];
+  const userIds = [
+    ...new Set(
+      reports.flatMap((report) => [
+        report.user_id,
+        ...(report.comment ? [report.comment.user_id] : []),
+      ])
+    ),
+  ];
+  if (userIds.length === 0) return reports;
+
+  const { data: profiles, error: profilesError } = await supabase
+    .from('profiles')
+    .select('id, username')
+    .in('id', userIds);
+  if (profilesError) throw profilesError;
+
+  const profilesById = new Map((profiles || []).map((profile) => [profile.id, profile]));
+  return reports.map((report) => ({
+    ...report,
+    profile: profilesById.get(report.user_id) || null,
+    comment: report.comment
+      ? {
+          ...report.comment,
+          profile: profilesById.get(report.comment.user_id) || null,
+        }
+      : null,
+  }));
 }
 
 export async function adminUpdateReportStatus(id: string, status: string): Promise<void> {

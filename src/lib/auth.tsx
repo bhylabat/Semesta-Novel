@@ -2,7 +2,7 @@ import { createContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { fetchProfile, createProfile } from './services';
-import type { Profile } from '@/types';
+import type { Profile, UserRole } from '@/types';
 
 interface AuthContextValue {
   session: Session | null;
@@ -27,6 +27,33 @@ function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
   ]);
 }
 
+function getAuthRole(user: User): UserRole {
+  const role = user.app_metadata?.role;
+  return role === 'admin' || role === 'author' || role === 'reader' ? role : 'reader';
+}
+
+async function loadOrCreateProfile(user: User): Promise<Profile | null> {
+  const existingProfile = await fetchProfile(user.id);
+  if (existingProfile) return existingProfile;
+
+  const profile: Profile = {
+    id: user.id,
+    username: user.email?.split('@')[0] || 'Pembaca',
+    email: user.email || '',
+    avatar_url: null,
+    role: getAuthRole(user),
+    created_at: user.created_at,
+  };
+
+  try {
+    await createProfile(profile.id, profile.email, profile.username, profile.role);
+    return profile;
+  } catch (error) {
+    console.error('Failed to create missing profile:', error);
+    return profile;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -48,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(data.session);
         if (data.session?.user) {
           try {
-            const p = await withTimeout(fetchProfile(data.session.user.id), 'Profile request');
+            const p = await withTimeout(loadOrCreateProfile(data.session.user), 'Profile request');
             if (mounted) setProfile(p);
           } catch (error) {
             console.error('Failed to load profile:', error);
@@ -76,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(newSession);
         try {
           if (newSession?.user) {
-            const p = await withTimeout(fetchProfile(newSession.user.id), 'Profile request');
+            const p = await withTimeout(loadOrCreateProfile(newSession.user), 'Profile request');
             if (mounted) setProfile(p);
           } else {
             setProfile(null);
