@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Bookmark, BookOpen, CheckCircle2, Play, Trash2, X } from 'lucide-react';
 import type { Novel, Bookmark as BookmarkType, ReadingHistory } from '@/types';
 import { fetchBookmarks, fetchReadingHistory, toggleBookmark, deleteReadingHistory, fetchNovelBySlug } from '@/lib/services';
@@ -14,7 +14,15 @@ type Tab = 'reading' | 'bookmark' | 'completed';
 
 export default function Library() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<Tab>('reading');
+  const [searchParams] = useSearchParams();
+
+  const initialTab = searchParams.get('tab');
+
+  const [tab, setTab] = useState<Tab>(
+    initialTab === 'bookmark' || initialTab === 'completed'
+      ? initialTab
+      : 'reading'
+  );
   const [reading, setReading] = useState<ReadingHistory[]>([]);
   const [bookmarks, setBookmarks] = useState<BookmarkType[]>([]);
   const [completed, setCompleted] = useState<Novel[]>([]);

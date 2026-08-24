@@ -5,6 +5,7 @@ import {
   Search, Bell, Flame, TrendingUp, Clock, LogIn, UserPlus
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { getUnreadNotificationCount } from '@/lib/services';
 
 const navItems = [
   { label: 'Beranda', path: '/', icon: Home },
@@ -29,6 +30,7 @@ export default function MainLayout() {
   const [mobileSearch, setMobileSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [scrolled, setScrolled] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -48,6 +50,42 @@ export default function MainLayout() {
       setSearchQuery('');
     }
   };
+
+  useEffect(() => {
+    if (!user) {
+      setUnreadNotifications(0);
+      return;
+    }
+
+    let mounted = true;
+
+    const loadUnreadNotifications = async () => {
+      try {
+        const count = await getUnreadNotificationCount(user.id);
+
+        if (mounted) {
+          setUnreadNotifications(count);
+        }
+      } catch (error) {
+        console.error('Failed to load unread notifications:', error);
+
+        if (mounted) {
+          setUnreadNotifications(0);
+        }
+      }
+    };
+
+    void loadUnreadNotifications();
+
+    const interval = window.setInterval(() => {
+      void loadUnreadNotifications();
+    }, 30000);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(interval);
+    };
+  }, [user]);
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
@@ -94,9 +132,24 @@ export default function MainLayout() {
                 className="input pl-9 w-48"
               />
             </form>
-            <button className="btn-ghost p-2" title="Notifikasi">
+            <Link
+              to="/notifications"
+              className="btn-ghost p-2 relative"
+              title="Notifikasi"
+              aria-label={
+                unreadNotifications > 0
+                  ? `Notifikasi, ${unreadNotifications} belum dibaca`
+                  : 'Notifikasi'
+              }
+            >
               <Bell className="h-5 w-5" />
-            </button>
+
+              {unreadNotifications > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center border-2 border-bg">
+                  {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                </span>
+              )}
+            </Link>
             {user ? (
               <Link to="/profile" className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-white/5 transition-colors">
                 <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-sm font-bold text-white">
@@ -133,8 +186,23 @@ export default function MainLayout() {
             <button onClick={() => setMobileSearch(!mobileSearch)} className="btn-ghost p-2">
               <Search className="h-5 w-5" />
             </button>
-            <Link to="/profile" className="btn-ghost p-2">
+            <Link
+              to="/notifications"
+              className="btn-ghost p-2 relative"
+              title="Notifikasi"
+              aria-label={
+                unreadNotifications > 0
+                  ? `Notifikasi, ${unreadNotifications} belum dibaca`
+                  : 'Notifikasi'
+              }
+            >
               <Bell className="h-5 w-5" />
+
+              {unreadNotifications > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center border-2 border-bg">
+                  {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                </span>
+              )}
             </Link>
           </div>
         </div>

@@ -304,6 +304,22 @@ async function attachCommentProfiles(comments: Comment[]): Promise<Comment[]> {
   }));
 }
 
+export async function fetchMyComments(
+  userId: string
+): Promise<Comment[]> {
+  if (!isSupabaseConfigured) return [];
+
+  const { data, error } = await supabase
+    .from('comments')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  return attachCommentProfiles((data || []) as Comment[]);
+}
+
 export async function fetchNovelComments(novelId: string): Promise<Comment[]> {
   if (!isSupabaseConfigured) return [];
   const { data, error } = await supabase
@@ -423,6 +439,36 @@ export async function markNotificationRead(id: string): Promise<void> {
   await supabase.from('notifications').update({ is_read: true }).eq('id', id);
 }
 
+export async function fetchUnreadNotificationCount(
+  userId: string
+): Promise<number> {
+  if (!isSupabaseConfigured) return 0;
+
+  const { count, error } = await supabase
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('is_read', false);
+
+  if (error) throw error;
+
+  return count || 0;
+}
+
+export async function markAllNotificationsRead(
+  userId: string
+): Promise<void> {
+  if (!isSupabaseConfigured) return;
+
+  const { error } = await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('user_id', userId)
+    .eq('is_read', false);
+
+  if (error) throw error;
+}
+
 // ---- Profile ----
 
 export async function fetchProfile(userId: string): Promise<Profile | null> {
@@ -440,6 +486,27 @@ export async function createProfile(userId: string, email: string, username: str
   if (!isSupabaseConfigured) return;
   const { error } = await supabase.from('profiles').insert({ id: userId, email, username, role });
   if (error) throw error;
+}
+
+export async function updateProfile(
+  userId: string,
+  updates: {
+    username?: string;
+    avatar_url?: string | null;
+  }
+): Promise<Profile | null> {
+  if (!isSupabaseConfigured) return null;
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('id', userId)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+
+  return data as Profile;
 }
 
 // ---- Admin ----
@@ -580,4 +647,60 @@ export async function adminFetchReports(): Promise<AdminReport[]> {
 export async function adminUpdateReportStatus(id: string, status: string): Promise<void> {
   if (!isSupabaseConfigured) return;
   await supabase.from('reports').update({ status }).eq('id', id);
+}
+
+export async function markNotificationAsRead(
+  notificationId: string
+): Promise<void> {
+  if (!isSupabaseConfigured) return;
+
+  const { error } = await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('id', notificationId);
+
+  if (error) throw error;
+}
+
+export async function markAllNotificationsAsRead(
+  userId: string
+): Promise<void> {
+  if (!isSupabaseConfigured) return;
+
+  const { error } = await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('user_id', userId)
+    .eq('is_read', false);
+
+  if (error) throw error;
+}
+
+export async function deleteNotification(
+  notificationId: string
+): Promise<void> {
+  if (!isSupabaseConfigured) return;
+
+  const { error } = await supabase
+    .from('notifications')
+    .delete()
+    .eq('id', notificationId);
+
+  if (error) throw error;
+}
+
+export async function getUnreadNotificationCount(
+  userId: string
+): Promise<number> {
+  if (!isSupabaseConfigured) return 0;
+
+  const { count, error } = await supabase
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('is_read', false);
+
+  if (error) throw error;
+
+  return count || 0;
 }

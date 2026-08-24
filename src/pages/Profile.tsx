@@ -19,7 +19,11 @@ import {
 
 import { useAuth } from '@/lib/auth-context';
 import type { Profile as ProfileType } from '@/types';
-import { fetchBookmarks, fetchReadingHistory } from '@/lib/services';
+import {
+  fetchBookmarks,
+  fetchReadingHistory,
+  updateProfile,
+} from '@/lib/services';
 import { getGuestBookmarks, getGuestHistory } from '@/lib/guest';
 import { formatDate, slugify } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -30,6 +34,10 @@ export default function Profile() {
 
   const [bookmarkCount, setBookmarkCount] = useState(0);
   const [historyCount, setHistoryCount] = useState(0);
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const [editUsername, setEditUsername] = useState('');
 
   // Tulis Novel
   const [showNovelForm, setShowNovelForm] = useState(false);
@@ -126,12 +134,12 @@ export default function Profile() {
     {
       icon: Bookmark,
       label: 'Bookmark',
-      to: '/library',
+      to: '/library?tab=bookmark',
     },
     {
       icon: MessageSquare,
       label: 'Komentar Saya',
-      to: '/profile',
+      to: '/comments',
     },
     {
       icon: SettingsIcon,
@@ -139,6 +147,45 @@ export default function Profile() {
       to: '/settings',
     },
   ];
+
+  const handleUpdateProfile = async (
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
+    e.preventDefault();
+
+    if (!user) return;
+
+    const username = editUsername.trim();
+
+    if (!username) {
+      setProfileError('Username wajib diisi.');
+      return;
+    }
+
+    setSavingProfile(true);
+    setProfileError('');
+
+    try {
+      await updateProfile(user.id, {
+        username,
+        avatar_url: displayProfile.avatar_url,
+      });
+
+      await refreshProfile();
+
+      setShowEditProfile(false);
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+
+      setProfileError(
+        error instanceof Error
+          ? error.message
+          : 'Gagal memperbarui profile.'
+      );
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   const openNovelForm = () => {
     setNovelError('');
@@ -269,8 +316,16 @@ export default function Profile() {
       <div className="card p-6 mb-6">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
 
-          <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-2xl font-bold text-white flex-shrink-0">
-            {displayProfile.username[0]?.toUpperCase()}
+          <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-2xl font-bold text-white flex-shrink-0 overflow-hidden">
+            {displayProfile.avatar_url ? (
+              <img
+                src={displayProfile.avatar_url}
+                alt={displayProfile.username}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              displayProfile.username[0]?.toUpperCase()
+            )}
           </div>
 
           <div className="flex-1 text-center sm:text-left">
@@ -281,6 +336,17 @@ export default function Profile() {
             <p className="text-sm text-muted mt-1">
               {displayProfile.email}
             </p>
+            <button
+              type="button"
+              onClick={() => {
+                setEditUsername(displayProfile.username);
+                setProfileError('');
+                setShowEditProfile(true);
+              }}
+              className="btn-primary mt-3 px-4 py-2 text-sm"
+            >
+              Edit Profile
+            </button>
 
             <div className="flex items-center justify-center sm:justify-start gap-3 mt-2">
 
@@ -409,6 +475,92 @@ export default function Profile() {
         Logout
       </button>
 
+      {/* Modal Edit Profile */}
+      {showEditProfile && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => {
+            if (!savingProfile) {
+              setShowEditProfile(false);
+              setProfileError('');
+            }
+          }}
+        >
+          <div
+            className="card p-6 max-w-lg w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-lg font-semibold text-white">
+                  Edit Profile
+                </h2>
+
+                <p className="text-xs text-muted mt-1">
+                  Perbarui informasi profile kamu.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!savingProfile) {
+                    setShowEditProfile(false);
+                    setProfileError('');
+                  }
+                }}
+                disabled={savingProfile}
+                className="btn-ghost p-2"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {profileError && (
+              <div className="mb-4 rounded-xl bg-red-500/10 border border-red-500/20 p-3">
+                <p className="text-sm text-red-400">
+                  {profileError}
+                </p>
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <div>
+                <label className="text-sm text-white mb-1 block">
+                  Username
+                </label>
+
+                <input
+                  type="text"
+                  value={editUsername}
+                  onChange={(e) => setEditUsername(e.target.value)}
+                  placeholder="Masukkan username"
+                  className="input w-full"
+                  disabled={savingProfile}
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={savingProfile}
+                className="btn-primary w-full"
+              >
+                {savingProfile ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  'Simpan Perubahan'
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+    
       {/* Modal Tulis Novel */}
       {showNovelForm && (
         <div

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '@/lib/auth';
+
 import MainLayout from '@/layouts/MainLayout';
 import ReaderLayout from '@/layouts/ReaderLayout';
 import AdminLayout from '@/layouts/AdminLayout';
@@ -14,9 +15,11 @@ import Library from '@/pages/Library';
 import History from '@/pages/History';
 import Search from '@/pages/Search';
 import Profile from '@/pages/Profile';
+import MyComments from '@/pages/MyComments';
 import Settings from '@/pages/Settings';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
+import Notifications from '@/pages/Notifications';
 
 import AdminDashboard from '@/pages/admin/Dashboard';
 import AdminNovels from '@/pages/admin/Novels';
@@ -33,25 +36,43 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+
+          {/* =========================
+              MAIN WEBSITE
+          ========================== */}
           <Route element={<MainLayout />}>
             <Route path="/" element={<Home />} />
             <Route path="/novel" element={<NovelCatalog />} />
             <Route path="/novel/:slug" element={<NovelDetail />} />
-            <Route path="/novel/:slug/chapters" element={<ChapterList />} />
+            <Route
+              path="/novel/:slug/chapters"
+              element={<ChapterList />}
+            />
             <Route path="/ranking" element={<Ranking />} />
             <Route path="/library" element={<Library />} />
             <Route path="/history" element={<History />} />
             <Route path="/search" element={<Search />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/comments" element={<MyComments />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/notifications" element={<Notifications />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
           </Route>
 
+          {/* =========================
+              READER
+          ========================== */}
           <Route element={<ReaderLayout />}>
-            <Route path="/read/:novelSlug/:chapterNumber" element={<Reader />} />
+            <Route
+              path="/read/:novelSlug/:chapterNumber"
+              element={<Reader />}
+            />
           </Route>
 
+          {/* =========================
+              ADMIN
+          ========================== */}
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="novels" element={<AdminNovels />} />
@@ -63,6 +84,7 @@ function App() {
             <Route path="statistics" element={<AdminStatistics />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>
+
         </Routes>
       </BrowserRouter>
     </AuthProvider>
