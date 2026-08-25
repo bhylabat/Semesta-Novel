@@ -19,7 +19,10 @@ export default function Register() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -28,13 +31,18 @@ export default function Register() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!username.trim()) {
+      setError('Username wajib diisi');
+      return;
+    }
+
     if (password.length < 6) {
       setError('Password minimal 6 karakter');
       return;
     }
 
-    if (!username.trim()) {
-      setError('Username wajib diisi');
+    if (password !== confirmPassword) {
+      setError('Konfirmasi password tidak sama');
       return;
     }
 
@@ -256,6 +264,47 @@ export default function Register() {
             <p className="text-xs text-muted mt-2">
               Password minimal 6 karakter.
             </p>
+          </div>
+
+          {/* Konfirmasi Password */}
+          <div>
+            <label className="text-sm font-medium text-white mb-2 block">
+              Konfirmasi Password
+            </label>
+
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Ulangi password"
+                className="input pl-10 pr-10 w-full"
+                required
+                disabled={formDisabled}
+              />
+
+              <button
+                type="button"
+                onClick={() =>
+                  setShowConfirmPassword((prev) => !prev)
+                }
+                disabled={formDisabled}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-white transition-colors"
+                aria-label={
+                  showConfirmPassword
+                    ? 'Sembunyikan konfirmasi password'
+                    : 'Tampilkan konfirmasi password'
+                }
+              >
+                {showConfirmPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Daftar */}
