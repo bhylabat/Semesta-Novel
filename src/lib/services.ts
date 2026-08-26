@@ -1022,6 +1022,8 @@ export async function updateProfile(
   userId: string,
   updates: {
     username?: string;
+    display_name?: string | null;
+    bio?: string | null;
     avatar_url?: string | null;
   }
 ): Promise<Profile | null> {
@@ -1041,6 +1043,64 @@ export async function updateProfile(
   }
 
   return data as Profile;
+}
+
+export async function uploadProfileAvatar(
+  userId: string,
+  file: File
+): Promise<string> {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase belum dikonfigurasi.');
+  }
+
+  if (!file.type.startsWith('image/')) {
+    throw new Error('File yang dipilih harus berupa gambar.');
+  }
+
+  const maxSize = 5 * 1024 * 1024;
+
+  if (file.size > maxSize) {
+    throw new Error('Ukuran foto maksimal 5 MB.');
+  }
+
+  const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+
+  const filePath = `${userId}/avatar.${fileExt}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: true,
+      contentType: file.type,
+    });
+
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const { data: publicUrlData } = supabase.storage
+    .from('avatars')
+    .getPublicUrl(filePath);
+
+  const avatarUrl = publicUrlData.publicUrl;
+
+  if (!avatarUrl) {
+    throw new Error('URL foto profil gagal dibuat.');
+  }
+
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({
+      avatar_url: avatarUrl,
+    })
+    .eq('id', userId);
+
+  if (profileError) {
+    throw profileError;
+  }
+
+  return avatarUrl;
 }
 
 // ============================================================

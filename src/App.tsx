@@ -30,6 +30,8 @@ import AdminGenres from '@/pages/admin/Genres';
 import AdminReports from '@/pages/admin/Reports';
 import AdminStatistics from '@/pages/admin/Statistics';
 import AdminSettings from '@/pages/admin/Settings';
+import AuthorDashboard from '@/pages/AuthorDashboard';
+import AuthorRoute from '@/routes/AuthorRoute';
 
 function App() {
   return (
@@ -68,6 +70,13 @@ function App() {
               path="/read/:novelSlug/:chapterNumber"
               element={<Reader />}
             />
+          </Route>
+
+          {/* =========================
+              DASHBOARD PENULIS
+          ========================== */}
+          <Route element={<AuthorRoute />}>
+            <Route path="/author" element={<AuthorDashboard />} />
           </Route>
 
           {/* =========================

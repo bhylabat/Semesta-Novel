@@ -1,9 +1,18 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import {
-  LayoutDashboard, BookOpen, FileText, Users,
-  MessageSquare, Tag, Flag, BarChart3, Settings,
-  Menu, X, LogOut, Home
+  LayoutDashboard,
+  BookOpen,
+  FileText,
+  Users,
+  MessageSquare,
+  Tag,
+  Flag,
+  BarChart3,
+  Menu,
+  X,
+  LogOut,
+  Home,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
@@ -16,9 +25,8 @@ const adminNavItems = [
   { label: 'Genres', path: '/admin/genres', icon: Tag },
   { label: 'Reports', path: '/admin/reports', icon: Flag },
   { label: 'Statistics', path: '/admin/statistics', icon: BarChart3 },
-  { label: 'Settings', path: '/admin/settings', icon: Settings },
-];
-
+  ];
+  
 export default function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();

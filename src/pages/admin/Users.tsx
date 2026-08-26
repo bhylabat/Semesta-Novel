@@ -95,7 +95,7 @@ export default function AdminUsers() {
               </div>
             </div>
             <div className="space-y-2 mb-6">
-              {(['reader', 'author', 'admin'] as UserRole[]).map((role) => (
+              {(['reader', 'author'] as UserRole[]).map((role) => (
                 <button key={role} onClick={() => setNewRole(role)} className={`flex items-center gap-3 w-full p-3 rounded-xl transition-colors ${newRole === role ? 'bg-primary/20 text-primary-300' : 'bg-white/5 text-muted hover:bg-white/10'}`}>
                   {role === 'admin' ? <Shield className="h-4 w-4" /> : <User className="h-4 w-4" />}
                   <span className="text-sm capitalize">{role}</span>

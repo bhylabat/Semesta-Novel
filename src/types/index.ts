@@ -9,6 +9,8 @@ export interface Profile {
   avatar_url: string | null;
   role: UserRole;
   created_at: string;
+  display_name?: string | null;
+  bio?: string | null;
 }
 
 export interface Genre {

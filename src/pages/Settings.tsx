@@ -206,6 +206,26 @@ export default function Settings() {
       </div>
 
       {/* =========================
+          VERSI WEBSITE
+      ========================== */}
+      <div className="card p-6 mb-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-white">
+              Versi Website
+            </p>
+            <p className="text-xs text-muted mt-1">
+              Semesta Novel
+            </p>
+          </div>
+
+          <span className="text-sm text-muted">
+            v1.0.0
+          </span>
+        </div>
+      </div>
+
+      {/* =========================
           LOGIN / SYNC
       ========================== */}
       {!user && (

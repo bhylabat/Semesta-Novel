@@ -66,7 +66,7 @@ async function loadOrCreateProfile(
   user: User
 ): Promise<Profile | null> {
   try {
-    // SELALU ambil profile terbaru dari database
+    // Selalu ambil profile terbaru dari database terlebih dahulu.
     const existingProfile = await fetchProfile(user.id);
 
     if (existingProfile) {
@@ -74,12 +74,25 @@ async function loadOrCreateProfile(
       return existingProfile;
     }
 
-    // Hanya membuat profile jika benar-benar belum ada
+    // Ambil nama dari akun Google.
+    const googleName =
+      user.user_metadata?.full_name ||
+      user.user_metadata?.name ||
+      user.user_metadata?.user_name ||
+      user.email?.split('@')[0] ||
+      'Pembaca';
+
+    const avatarUrl =
+      user.user_metadata?.avatar_url ||
+      user.user_metadata?.picture ||
+      null;
+
+    // Jika profile belum ada, buat profile baru.
     const newProfile: Profile = {
       id: user.id,
-      username: user.email?.split('@')[0] || 'Pembaca',
+      username: googleName,
       email: user.email || '',
-      avatar_url: null,
+      avatar_url: avatarUrl,
       role: 'reader',
       created_at: user.created_at,
     };
@@ -91,6 +104,7 @@ async function loadOrCreateProfile(
       newProfile.role
     );
 
+    // Ambil kembali profile yang benar-benar tersimpan di database.
     const createdProfile = await fetchProfile(user.id);
 
     return createdProfile ?? newProfile;
