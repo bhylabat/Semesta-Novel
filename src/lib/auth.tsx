@@ -1,25 +1,30 @@
+"src/lib/auth.tsx"
+
 import { createContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { fetchProfile, createProfile } from './services';
-import type { Profile, UserRole } from '@/types';
+import type { Profile } from '@/types';
 
 interface AuthContextValue {
   session: Session | null;
   user: User | null;
   profile: Profile | null;
   loading: boolean;
+
   signIn: (
     email: string,
     password: string
   ) => Promise<{ error: string | null }>;
 
   signInWithGoogle: () => Promise<{ error: string | null }>;
+
   signUp: (
     email: string,
     password: string,
     username: string
   ) => Promise<{ error: string | null }>;
+
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -42,20 +47,6 @@ function withTimeout<T>(
       }, AUTH_REQUEST_TIMEOUT_MS);
     }),
   ]);
-}
-
-function getAuthRole(user: User): UserRole {
-  const role = user.app_metadata?.role;
-
-  if (
-    role === 'admin' ||
-    role === 'author' ||
-    role === 'reader'
-  ) {
-    return role;
-  }
-
-  return 'reader';
 }
 
 /**
@@ -273,12 +264,13 @@ export function AuthProvider({
       };
     }
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin,
-      },
-    });
+    const { error } =
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
 
     if (error) {
       return {
@@ -298,18 +290,23 @@ export function AuthProvider({
   const signUp = async (
     email: string,
     password: string,
-    _username: string
+    username: string
   ) => {
+    // Username tetap diterima karena bagian dari API signUp,
+    // tetapi profile dibuat oleh database trigger.
+    void username;
+
     if (!isSupabaseConfigured) {
       return {
         error: 'Supabase belum dikonfigurasi',
       };
     }
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    const { error } =
+      await supabase.auth.signUp({
+        email,
+        password,
+      });
 
     if (error) {
       return {

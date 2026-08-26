@@ -19,6 +19,7 @@ interface AuthorNovel {
   title: string;
   slug: string;
   description: string | null;
+  cover_url: string | null;
   status: string | null;
   views: number | null;
   bookmark_count: number | null;
@@ -56,6 +57,7 @@ export default function AuthorDashboard() {
               title,
               slug,
               description,
+              cover_url,
               status,
               views,
               bookmark_count,
@@ -234,6 +236,57 @@ export default function AuthorDashboard() {
 
       </div>
 
+      {/* Management */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+
+        <Link
+          to="/author/novels"
+          className="card p-5 hover:bg-white/[0.03] transition-colors group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <BookOpen className="h-5 w-5 text-primary-400" />
+            </div>
+
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-white group-hover:text-primary-300">
+                Kelola Novel
+              </h3>
+
+              <p className="text-xs text-muted mt-1">
+                Edit dan kelola novel yang kamu tulis.
+              </p>
+            </div>
+
+            <ChevronRight className="h-5 w-5 text-muted group-hover:text-primary-300" />
+          </div>
+        </Link>
+
+        <Link
+          to="/author/chapters"
+          className="card p-5 hover:bg-white/[0.03] transition-colors group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <FileText className="h-5 w-5 text-primary-400" />
+            </div>
+
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-white group-hover:text-primary-300">
+                Kelola Bab
+              </h3>
+
+              <p className="text-xs text-muted mt-1">
+                Tulis dan kelola bab novel.
+              </p>
+            </div>
+
+            <ChevronRight className="h-5 w-5 text-muted group-hover:text-primary-300" />
+          </div>
+        </Link>
+
+      </div>
+
       {/* Novel Section */}
       <div className="card overflow-hidden">
 
@@ -248,10 +301,10 @@ export default function AuthorDashboard() {
             </p>
           </div>
 
-          <Link
-            to="/profile"
-            className="btn-primary text-sm"
-          >
+            <Link
+              to="/author/create"
+              className="btn-primary text-sm"
+            >
             <Plus className="h-4 w-4" />
             Buat Novel
           </Link>
@@ -291,10 +344,10 @@ export default function AuthorDashboard() {
               sekarang.
             </p>
 
-            <Link
-              to="/profile"
-              className="btn-primary mt-5"
-            >
+              <Link
+                to="/author/create"
+                className="btn-primary mt-5"
+              >
               <PenLine className="h-4 w-4" />
               Tulis Novel
             </Link>
@@ -309,8 +362,19 @@ export default function AuthorDashboard() {
                 key={novel.id}
                 className="p-4 md:p-5 flex items-center gap-4 hover:bg-white/[0.03] transition-colors"
               >
-                <div className="h-14 w-14 md:h-16 md:w-16 rounded-xl bg-gradient-to-br from-primary/30 to-secondary/20 flex items-center justify-center flex-shrink-0">
-                  <BookOpen className="h-6 w-6 text-primary-300" />
+                <div className="h-14 w-14 md:h-16 md:w-16 rounded-xl overflow-hidden bg-gradient-to-br from-primary/30 to-secondary/20 flex-shrink-0">
+                  {novel.cover_url ? (
+                    <img
+                      src={novel.cover_url}
+                      alt={`Cover ${novel.title}`}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <BookOpen className="h-6 w-6 text-primary-300" />
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex-1 min-w-0">
@@ -347,57 +411,6 @@ export default function AuthorDashboard() {
             ))}
           </div>
         )}
-
-      </div>
-
-      {/* Future Management Section */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3">
-
-        <div className="card p-5">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <BookOpen className="h-5 w-5 text-primary-400" />
-            </div>
-
-            <div>
-              <h3 className="text-sm font-semibold text-white">
-                Kelola Novel
-              </h3>
-
-              <p className="text-xs text-muted mt-1">
-                Edit informasi dan pengaturan novel.
-              </p>
-            </div>
-          </div>
-
-          <p className="text-xs text-muted mt-4">
-            Fitur pengelolaan novel akan kita lanjutkan pada tahap
-            berikutnya.
-          </p>
-        </div>
-
-        <div className="card p-5">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <FileText className="h-5 w-5 text-primary-400" />
-            </div>
-
-            <div>
-              <h3 className="text-sm font-semibold text-white">
-                Kelola Bab
-              </h3>
-
-              <p className="text-xs text-muted mt-1">
-                Tulis dan kelola bab novel.
-              </p>
-            </div>
-          </div>
-
-          <p className="text-xs text-muted mt-4">
-            Fitur pengelolaan bab akan kita lanjutkan pada tahap
-            berikutnya.
-          </p>
-        </div>
 
       </div>
 

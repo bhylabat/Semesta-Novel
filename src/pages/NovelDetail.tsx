@@ -120,10 +120,25 @@ export default function NovelDetail() {
 
       {/* Main Info */}
       <div className="flex flex-col md:flex-row gap-6 -mt-20 md:-mt-24 relative z-10">
-        {/* Cover */}
-        <div className="flex-shrink-0 mx-auto md:mx-0">
-          <div className="w-36 h-52 md:w-44 md:h-64 rounded-2xl overflow-hidden shadow-2xl" style={{ background: getCoverGradient(novel.cover_url) }} />
-        </div>
+          {/* Cover */}
+          <div className="flex-shrink-0 mx-auto md:mx-0">
+            <div className="w-36 h-52 md:w-44 md:h-64 rounded-2xl overflow-hidden shadow-2xl bg-black/20">
+              {novel.cover_url ? (
+                <img
+                  src={novel.cover_url}
+                  alt={`Cover ${novel.title}`}
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <div
+                  className="w-full h-full"
+                  style={{
+                    background: getCoverGradient(novel.cover_url),
+                  }}
+                />
+              )}
+            </div>
+          </div>
 
         {/* Info */}
         <div className="flex-1 pt-2 md:pt-20">

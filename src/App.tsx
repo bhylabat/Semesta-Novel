@@ -31,7 +31,12 @@ import AdminReports from '@/pages/admin/Reports';
 import AdminStatistics from '@/pages/admin/Statistics';
 import AdminSettings from '@/pages/admin/Settings';
 import AuthorDashboard from '@/pages/AuthorDashboard';
+import CreateNovel from '@/pages/CreateNovel';
 import AuthorRoute from '@/routes/AuthorRoute';
+import AuthorNovels from '@/pages/AuthorNovels';
+import EditNovel from '@/pages/EditNovel';
+import AuthorChapters from '@/pages/AuthorChapters';
+import CreateChapter from '@/pages/CreateChapter';
 
 function App() {
   return (
@@ -77,6 +82,20 @@ function App() {
           ========================== */}
           <Route element={<AuthorRoute />}>
             <Route path="/author" element={<AuthorDashboard />} />
+            <Route path="/author/create" element={<CreateNovel />} />
+            <Route path="/author/novels" element={<AuthorNovels />} />
+            <Route
+              path="/author/novels/:id/edit"
+              element={<EditNovel />}
+            />
+            <Route
+              path="/author/novels/:id/chapters"
+              element={<AuthorChapters />}
+            />
+            <Route
+              path="/author/novels/:id/chapters/new"
+              element={<CreateChapter />}
+            />
           </Route>
 
           {/* =========================
