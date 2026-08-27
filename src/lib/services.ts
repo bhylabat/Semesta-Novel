@@ -12,6 +12,74 @@ import type {
 } from '@/types';
 
 // ============================================================
+// HELPERS
+// ============================================================
+
+/**
+ * Mengambil jumlah bab dan jumlah bookmark setiap novel.
+ *
+ * Dipakai agar NovelCard selalu mendapatkan:
+ * - chapter_count
+ * - bookmark_count
+ */
+async function attachNovelStats(
+  novels: Novel[]
+): Promise<Novel[]> {
+  if (!isSupabaseConfigured || novels.length === 0) {
+    return novels;
+  }
+
+  return Promise.all(
+    novels.map(async (novel) => {
+      const [
+        chapterResult,
+        bookmarkResult,
+      ] = await Promise.all([
+        supabase
+          .from('chapters')
+          .select('id', {
+            count: 'exact',
+            head: true,
+          })
+          .eq('novel_id', novel.id),
+
+        supabase
+          .from('bookmarks')
+          .select('id', {
+            count: 'exact',
+            head: true,
+          })
+          .eq('novel_id', novel.id),
+      ]);
+
+      if (chapterResult.error) {
+        throw chapterResult.error;
+      }
+
+      if (bookmarkResult.error) {
+        throw bookmarkResult.error;
+      }
+
+      return {
+        ...novel,
+        chapter_count: chapterResult.count || 0,
+        bookmark_count: bookmarkResult.count || 0,
+      };
+    })
+  );
+}
+
+/**
+ * Mengambil data novel lengkap untuk tampilan card.
+ */
+async function enrichNovel(
+  novel: Novel
+): Promise<Novel> {
+  const result = await attachNovelStats([novel]);
+  return result[0] || novel;
+}
+
+// ============================================================
 // NOVELS
 // ============================================================
 
@@ -24,86 +92,164 @@ export async function fetchNovels(options?: {
   offset?: number;
 }): Promise<{ data: Novel[]; total: number }> {
   if (!isSupabaseConfigured) {
-    return { data: [], total: 0 };
+    return {
+      data: [],
+      total: 0,
+    };
   }
 
   let query = supabase
     .from('novels')
-    .select('*', { count: 'exact' });
+    .select('*', {
+      count: 'exact',
+    });
 
-  if (options?.status && options.status !== 'all') {
-    query = query.eq('status', options.status);
+  if (
+    options?.status &&
+    options.status !== 'all'
+  ) {
+    query = query.eq(
+      'status',
+      options.status
+    );
   }
 
   if (options?.search) {
-    query = query.or(
-      `title.ilike.%${options.search}%,author.ilike.%${options.search}%,description.ilike.%${options.search}%`
-    );
+    const search =
+      options.search.trim();
+
+    if (search) {
+      query = query.or(
+        `title.ilike.%${search}%,author.ilike.%${search}%,description.ilike.%${search}%`
+      );
+    }
   }
 
   switch (options?.sort) {
     case 'terpopuler':
-      query = query.order('views', { ascending: false });
+      query = query.order(
+        'views',
+        {
+          ascending: false,
+        }
+      );
       break;
 
     case 'rating':
-      query = query.order('rating', { ascending: false });
+      query = query.order(
+        'rating',
+        {
+          ascending: false,
+        }
+      );
       break;
 
     case 'az':
-      query = query.order('title', { ascending: true });
+      query = query.order(
+        'title',
+        {
+          ascending: true,
+        }
+      );
       break;
 
     case 'chapter':
-      query = query.order('updated_at', { ascending: false });
+      query = query.order(
+        'updated_at',
+        {
+          ascending: false,
+        }
+      );
       break;
 
+    case 'terbaru':
     default:
-      query = query.order('created_at', { ascending: false });
+      query = query.order(
+        'created_at',
+        {
+          ascending: false,
+        }
+      );
+      break;
   }
 
   if (options?.limit) {
-    const offset = options.offset || 0;
+    const offset =
+      options.offset || 0;
 
     query = query.range(
       offset,
-      offset + options.limit - 1
+      offset +
+        options.limit -
+        1
     );
   }
 
-  const { data, error, count } = await query;
+  const {
+    data,
+    error,
+    count,
+  } = await query;
 
   if (error) {
     throw error;
   }
 
-  let novels = (data || []) as Novel[];
+  let novels =
+    (data || []) as Novel[];
 
-  if (options?.genre && options.genre !== 'all') {
-    const { data: ngData, error: genreError } =
-      await supabase
-        .from('novel_genres')
-        .select('novel_id')
-        .eq('genre_id', options.genre);
+  // Filter genre
+  if (
+    options?.genre &&
+    options.genre !== 'all'
+  ) {
+    const {
+      data: ngData,
+      error: genreError,
+    } = await supabase
+      .from('novel_genres')
+      .select('novel_id')
+      .eq(
+        'genre_id',
+        options.genre
+      );
 
     if (genreError) {
       throw genreError;
     }
 
-    const novelIds = (ngData || []).map(
-      (row: { novel_id: string }) => row.novel_id
-    );
+    const novelIds =
+      (ngData || []).map(
+        (
+          row: {
+            novel_id: string;
+          }
+        ) => row.novel_id
+      );
 
-    novels = novels.filter((novel) =>
-      novelIds.includes(novel.id)
+    novels = novels.filter(
+      (novel) =>
+        novelIds.includes(
+          novel.id
+        )
     );
   }
+
+  // Tambahkan jumlah bab + bookmark
+  novels =
+    await attachNovelStats(
+      novels
+    );
 
   return {
     data: novels,
     total: count || 0,
   };
 }
+
+// ============================================================
+// NOVEL BY SLUG
+// ============================================================
 
 export async function fetchNovelBySlug(
   slug: string
@@ -112,7 +258,10 @@ export async function fetchNovelBySlug(
     return null;
   }
 
-  const { data, error } = await supabase
+  const {
+    data,
+    error,
+  } = await supabase
     .from('novels')
     .select('*')
     .eq('slug', slug)
@@ -126,66 +275,140 @@ export async function fetchNovelBySlug(
     return null;
   }
 
-  const novel = data as Novel;
+  const novel =
+    data as Novel;
 
-  const { data: ngData, error: genreError } =
-    await supabase
-      .from('novel_genres')
-      .select('genres(*)')
-      .eq('novel_id', novel.id);
+  // Genres
+  const {
+    data: ngData,
+    error: genreError,
+  } = await supabase
+    .from('novel_genres')
+    .select('genres(*)')
+    .eq(
+      'novel_id',
+      novel.id
+    );
 
   if (genreError) {
     throw genreError;
   }
 
-  novel.genres = (ngData || []).flatMap(
-    (row: { genres: Genre[] }) => row.genres || []
-  );
+  novel.genres =
+    (ngData || []).flatMap(
+      (
+        row: {
+          genres:
+            | Genre
+            | Genre[]
+            | null;
+        }
+      ) => {
+        if (!row.genres) {
+          return [];
+        }
 
-  const { data: latestChapter, error: chapterError } =
-    await supabase
-      .from('chapters')
-      .select('*')
-      .eq('novel_id', novel.id)
-      .order('chapter_number', {
+        return Array.isArray(
+          row.genres
+        )
+          ? row.genres
+          : [row.genres];
+      }
+    );
+
+  // Latest chapter
+  const {
+    data: latestChapter,
+    error: chapterError,
+  } = await supabase
+    .from('chapters')
+    .select('*')
+    .eq(
+      'novel_id',
+      novel.id
+    )
+    .order(
+      'chapter_number',
+      {
         ascending: false,
-      })
-      .limit(1)
-      .maybeSingle();
+      }
+    )
+    .limit(1)
+    .maybeSingle();
 
   if (chapterError) {
     throw chapterError;
   }
 
-  novel.latest_chapter =
-    latestChapter as Chapter | undefined;
+  novel.latest_chapter = latestChapter
+  ? (latestChapter as Chapter)
+  : undefined;
 
-  const { count, error: countError } =
-    await supabase
-      .from('chapters')
-      .select('*', {
-        count: 'exact',
-        head: true,
-      })
-      .eq('novel_id', novel.id);
+  // Chapter count
+  const {
+    count: chapterCount,
+    error: chapterCountError,
+  } = await supabase
+    .from('chapters')
+    .select('id', {
+      count: 'exact',
+      head: true,
+    })
+    .eq(
+      'novel_id',
+      novel.id
+    );
 
-  if (countError) {
-    throw countError;
+  if (chapterCountError) {
+    throw chapterCountError;
   }
 
-  novel.chapter_count = count || 0;
+  novel.chapter_count =
+    chapterCount || 0;
+
+  // Bookmark count
+  const {
+    count: bookmarkCount,
+    error: bookmarkCountError,
+  } = await supabase
+    .from('bookmarks')
+    .select('id', {
+      count: 'exact',
+      head: true,
+    })
+    .eq(
+      'novel_id',
+      novel.id
+    );
+
+  if (bookmarkCountError) {
+    throw bookmarkCountError;
+  }
+
+  novel.bookmark_count =
+    bookmarkCount || 0;
 
   return novel;
 }
 
+// ============================================================
+// NOVELS BY IDS
+// ============================================================
+
 export async function fetchNovelsByIds(
   ids: string[]
 ): Promise<Novel[]> {
-  if (!isSupabaseConfigured || ids.length === 0) {
+  if (
+    !isSupabaseConfigured ||
+    ids.length === 0
+  ) {
     return [];
   }
 
-  const { data, error } = await supabase
+  const {
+    data,
+    error,
+  } = await supabase
     .from('novels')
     .select('*')
     .in('id', ids);
@@ -194,8 +417,14 @@ export async function fetchNovelsByIds(
     throw error;
   }
 
-  return (data || []) as Novel[];
+  return attachNovelStats(
+    (data || []) as Novel[]
+  );
 }
+
+// ============================================================
+// SIMILAR NOVELS
+// ============================================================
 
 export async function fetchSimilarNovels(
   novel: Novel,
@@ -208,17 +437,28 @@ export async function fetchSimilarNovels(
     return [];
   }
 
-  const genreIds = novel.genres.map(
-    (genre) => genre.id
-  );
+  const genreIds =
+    novel.genres.map(
+      (genre) => genre.id
+    );
 
-  const { data: ngData, error } =
-    await supabase
-      .from('novel_genres')
-      .select('novel_id')
-      .in('genre_id', genreIds)
-      .neq('novel_id', novel.id)
-      .limit(limit * 2);
+  const {
+    data: ngData,
+    error,
+  } = await supabase
+    .from('novel_genres')
+    .select('novel_id')
+    .in(
+      'genre_id',
+      genreIds
+    )
+    .neq(
+      'novel_id',
+      novel.id
+    )
+    .limit(
+      limit * 2
+    );
 
   if (error) {
     throw error;
@@ -227,30 +467,150 @@ export async function fetchSimilarNovels(
   const novelIds = [
     ...new Set(
       (ngData || []).map(
-        (row: { novel_id: string }) =>
+        (
+          row: {
+            novel_id: string;
+          }
+        ) =>
           row.novel_id
       )
     ),
-  ].slice(0, limit);
+  ].slice(
+    0,
+    limit
+  );
 
-  if (novelIds.length === 0) {
+  if (
+    novelIds.length === 0
+  ) {
     return [];
   }
 
-  const { data, error: novelError } =
-    await supabase
-      .from('novels')
-      .select('*')
-      .in('id', novelIds)
-      .limit(limit);
+  const {
+    data,
+    error: novelError,
+  } = await supabase
+    .from('novels')
+    .select('*')
+    .in(
+      'id',
+      novelIds
+    )
+    .limit(limit);
 
   if (novelError) {
     throw novelError;
   }
 
-  return (data || []) as Novel[];
+  return attachNovelStats(
+    (data || []) as Novel[]
+  );
 }
 
+// ============================================================
+// NOVEL RATINGS
+// ============================================================
+
+export async function fetchNovelRating(
+  novelId: string,
+  userId: string
+): Promise<number | null> {
+  if (!isSupabaseConfigured || !userId) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('novel_ratings')
+    .select('rating')
+    .eq('novel_id', novelId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return Number(data.rating);
+}
+
+export async function submitNovelRating(
+  novelId: string,
+  userId: string,
+  rating: number
+): Promise<number> {
+  if (!isSupabaseConfigured) {
+    return 0;
+  }
+
+  const safeRating = Math.min(
+    5,
+    Math.max(1, Math.round(Number(rating)))
+  );
+
+  // Simpan / update rating user.
+  const { error: upsertError } = await supabase
+    .from('novel_ratings')
+    .upsert(
+      {
+        novel_id: novelId,
+        user_id: userId,
+        rating: safeRating,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'novel_id,user_id',
+      }
+    );
+
+  if (upsertError) {
+    throw upsertError;
+  }
+
+  // Ambil semua rating untuk novel.
+  const { data: ratingsData, error: ratingsError } =
+    await supabase
+      .from('novel_ratings')
+      .select('rating')
+      .eq('novel_id', novelId);
+
+  if (ratingsError) {
+    throw ratingsError;
+  }
+
+  const ratings = (ratingsData || [])
+    .map((row) => Number(row.rating))
+    .filter((value) => Number.isFinite(value));
+
+  const average =
+    ratings.length > 0
+      ? ratings.reduce(
+          (sum, value) => sum + value,
+          0
+        ) / ratings.length
+      : 0;
+
+  const roundedAverage = Number(
+    average.toFixed(1)
+  );
+
+  // Simpan rata-rata ke tabel novels.
+  const { error: updateError } = await supabase
+    .from('novels')
+    .update({
+      rating: roundedAverage,
+    })
+    .eq('id', novelId);
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  return roundedAverage;
+}
 // ============================================================
 // CHAPTERS
 // ============================================================
@@ -273,30 +633,50 @@ export async function fetchChapters(
     };
   }
 
-  const limit = options?.limit || 10;
-  const offset = options?.offset || 0;
-  const ascending = options?.order !== 'desc';
+  const limit =
+    options?.limit || 10;
 
-  const { data, error, count } =
-    await supabase
-      .from('chapters')
-      .select('*', { count: 'exact' })
-      .eq('novel_id', novelId)
-      .order('chapter_number', {
+  const offset =
+    options?.offset || 0;
+
+  const ascending =
+    options?.order !== 'desc';
+
+  const {
+    data,
+    error,
+    count,
+  } = await supabase
+    .from('chapters')
+    .select('*', {
+      count: 'exact',
+    })
+    .eq(
+      'novel_id',
+      novelId
+    )
+    .order(
+      'chapter_number',
+      {
         ascending,
-      })
-      .range(
-        offset,
-        offset + limit - 1
-      );
+      }
+    )
+    .range(
+      offset,
+      offset +
+        limit -
+        1
+    );
 
   if (error) {
     throw error;
   }
 
   return {
-    data: (data || []) as Chapter[],
-    total: count || 0,
+    data:
+      (data || []) as Chapter[],
+    total:
+      count || 0,
   };
 }
 
@@ -308,18 +688,29 @@ export async function fetchChapterByNumber(
     return null;
   }
 
-  const { data, error } = await supabase
+  const {
+    data,
+    error,
+  } = await supabase
     .from('chapters')
     .select('*')
-    .eq('novel_id', novelId)
-    .eq('chapter_number', chapterNumber)
+    .eq(
+      'novel_id',
+      novelId
+    )
+    .eq(
+      'chapter_number',
+      chapterNumber
+    )
     .maybeSingle();
 
   if (error) {
     throw error;
   }
 
-  return data as Chapter | null;
+  return data as
+    | Chapter
+    | null;
 }
 
 export async function fetchLatestChapters(
@@ -330,27 +721,44 @@ export async function fetchLatestChapters(
     return [];
   }
 
-  const { data, error } = await supabase
+  const {
+    data,
+    error,
+  } = await supabase
     .from('chapters')
     .select('*')
-    .eq('novel_id', novelId)
-    .order('chapter_number', {
-      ascending: false,
-    })
+    .eq(
+      'novel_id',
+      novelId
+    )
+    .order(
+      'chapter_number',
+      {
+        ascending: false,
+      }
+    )
     .limit(limit);
 
   if (error) {
     throw error;
   }
 
-  return (data || []) as Chapter[];
+  return (data ||
+    []) as Chapter[];
 }
 
+// ============================================================
+// CHAPTER VIEWS
+// ============================================================
+
 /**
- * Mencatat 1 view untuk sebuah bab.
+ * Mencatat view ketika pembaca membuka bab.
  *
- * View dicatat ketika pembaca membuka bab,
- * bukan berdasarkan scroll.
+ * Yang bertambah:
+ * 1. chapters.views
+ * 2. novels.views
+ *
+ * Tidak membutuhkan scroll.
  */
 export async function recordChapterView(
   chapterId: string
@@ -359,12 +767,19 @@ export async function recordChapterView(
     return;
   }
 
-  const { data: chapter, error: fetchError } =
-    await supabase
-      .from('chapters')
-      .select('id, views')
-      .eq('id', chapterId)
-      .maybeSingle();
+  const {
+    data: chapter,
+    error: fetchError,
+  } = await supabase
+    .from('chapters')
+    .select(
+      'id, novel_id, views'
+    )
+    .eq(
+      'id',
+      chapterId
+    )
+    .maybeSingle();
 
   if (fetchError) {
     throw fetchError;
@@ -374,21 +789,75 @@ export async function recordChapterView(
     return;
   }
 
-  const currentViews =
-    typeof chapter.views === 'number'
-      ? chapter.views
-      : Number(chapter.views || 0);
+  const currentChapterViews =
+    Number(
+      chapter.views || 0
+    );
 
-  const { error: updateError } =
-    await supabase
-      .from('chapters')
-      .update({
-        views: currentViews + 1,
-      })
-      .eq('id', chapterId);
+  // Tambah view bab
+  const {
+    error: chapterUpdateError,
+  } = await supabase
+    .from('chapters')
+    .update({
+      views:
+        currentChapterViews +
+        1,
+    })
+    .eq(
+      'id',
+      chapterId
+    );
 
-  if (updateError) {
-    throw updateError;
+  if (chapterUpdateError) {
+    throw chapterUpdateError;
+  }
+
+  // Ambil view novel
+  const {
+    data: novel,
+    error: novelFetchError,
+  } = await supabase
+    .from('novels')
+    .select(
+      'id, views'
+    )
+    .eq(
+      'id',
+      chapter.novel_id
+    )
+    .maybeSingle();
+
+  if (novelFetchError) {
+    throw novelFetchError;
+  }
+
+  if (!novel) {
+    return;
+  }
+
+  const currentNovelViews =
+    Number(
+      novel.views || 0
+    );
+
+  // Tambah view novel
+  const {
+    error: novelUpdateError,
+  } = await supabase
+    .from('novels')
+    .update({
+      views:
+        currentNovelViews +
+        1,
+    })
+    .eq(
+      'id',
+      chapter.novel_id
+    );
+
+  if (novelUpdateError) {
+    throw novelUpdateError;
   }
 }
 
@@ -401,7 +870,10 @@ export async function fetchGenres(): Promise<Genre[]> {
     return [];
   }
 
-  const { data, error } = await supabase
+  const {
+    data,
+    error,
+  } = await supabase
     .from('genres')
     .select('*')
     .order('name');
@@ -410,7 +882,8 @@ export async function fetchGenres(): Promise<Genre[]> {
     throw error;
   }
 
-  return (data || []) as Genre[];
+  return (data ||
+    []) as Genre[];
 }
 
 // ============================================================
@@ -424,19 +897,50 @@ export async function fetchBookmarks(
     return [];
   }
 
-  const { data, error } = await supabase
+  const {
+    data,
+    error,
+  } = await supabase
     .from('bookmarks')
-    .select('*, novel:novels(*)')
-    .eq('user_id', userId)
-    .order('created_at', {
-      ascending: false,
-    });
+    .select(
+      '*, novel:novels(*)'
+    )
+    .eq(
+      'user_id',
+      userId
+    )
+    .order(
+      'created_at',
+      {
+        ascending: false,
+      }
+    );
 
   if (error) {
     throw error;
   }
 
-  return (data || []) as Bookmark[];
+  const bookmarks =
+    (data ||
+      []) as Bookmark[];
+
+  // Lengkapi statistik novel di bookmark
+  await Promise.all(
+    bookmarks.map(
+      async (bookmark) => {
+        if (
+          bookmark.novel
+        ) {
+          bookmark.novel =
+            await enrichNovel(
+              bookmark.novel as Novel
+            );
+        }
+      }
+    )
+  );
+
+  return bookmarks;
 }
 
 export async function toggleBookmark(
@@ -447,23 +951,37 @@ export async function toggleBookmark(
     return false;
   }
 
-  const { data: existing, error: lookupError } =
-    await supabase
-      .from('bookmarks')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('novel_id', novelId)
-      .maybeSingle();
+  const {
+    data: existing,
+    error: lookupError,
+  } = await supabase
+    .from('bookmarks')
+    .select('id')
+    .eq(
+      'user_id',
+      userId
+    )
+    .eq(
+      'novel_id',
+      novelId
+    )
+    .maybeSingle();
 
   if (lookupError) {
     throw lookupError;
   }
 
+  // Hapus bookmark
   if (existing) {
-    const { error } = await supabase
+    const {
+      error,
+    } = await supabase
       .from('bookmarks')
       .delete()
-      .eq('id', existing.id);
+      .eq(
+        'id',
+        existing.id
+      );
 
     if (error) {
       throw error;
@@ -472,11 +990,16 @@ export async function toggleBookmark(
     return false;
   }
 
-  const { error } = await supabase
+  // Tambah bookmark
+  const {
+    error,
+  } = await supabase
     .from('bookmarks')
     .insert({
-      user_id: userId,
-      novel_id: novelId,
+      user_id:
+        userId,
+      novel_id:
+        novelId,
     });
 
   if (error) {
@@ -494,11 +1017,20 @@ export async function isBookmarked(
     return false;
   }
 
-  const { data, error } = await supabase
+  const {
+    data,
+    error,
+  } = await supabase
     .from('bookmarks')
     .select('id')
-    .eq('user_id', userId)
-    .eq('novel_id', novelId)
+    .eq(
+      'user_id',
+      userId
+    )
+    .eq(
+      'novel_id',
+      novelId
+    )
     .maybeSingle();
 
   if (error) {
@@ -506,6 +1038,37 @@ export async function isBookmarked(
   }
 
   return Boolean(data);
+}
+
+/**
+ * Mengambil jumlah bookmark novel.
+ */
+export async function fetchNovelBookmarkCount(
+  novelId: string
+): Promise<number> {
+  if (!isSupabaseConfigured) {
+    return 0;
+  }
+
+  const {
+    count,
+    error,
+  } = await supabase
+    .from('bookmarks')
+    .select('id', {
+      count: 'exact',
+      head: true,
+    })
+    .eq(
+      'novel_id',
+      novelId
+    );
+
+  if (error) {
+    throw error;
+  }
+
+  return count || 0;
 }
 
 // ============================================================
@@ -519,21 +1082,47 @@ export async function fetchReadingHistory(
     return [];
   }
 
-  const { data, error } = await supabase
+  const {
+    data,
+    error,
+  } = await supabase
     .from('reading_history')
     .select(
       '*, novel:novels(*), chapter:chapters(*)'
     )
-    .eq('user_id', userId)
-    .order('last_read_at', {
-      ascending: false,
-    });
+    .eq(
+      'user_id',
+      userId
+    )
+    .order(
+      'last_read_at',
+      {
+        ascending: false,
+      }
+    );
 
   if (error) {
     throw error;
   }
 
-  return (data || []) as ReadingHistory[];
+  const history =
+    (data ||
+      []) as ReadingHistory[];
+
+  await Promise.all(
+    history.map(
+      async (item) => {
+        if (item.novel) {
+          item.novel =
+            await enrichNovel(
+              item.novel as Novel
+            );
+        }
+      }
+    )
+  );
+
+  return history;
 }
 
 export async function updateReadingHistory(
@@ -546,52 +1135,79 @@ export async function updateReadingHistory(
     return;
   }
 
-  const safeProgress = Math.min(
-    100,
-    Math.max(0, progress)
-  );
+  const safeProgress =
+    Math.min(
+      100,
+      Math.max(
+        0,
+        Number(progress)
+      )
+    );
 
-  const { data: existing, error: lookupError } =
-    await supabase
-      .from('reading_history')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('novel_id', novelId)
-      .maybeSingle();
+  const {
+    data: existing,
+    error: lookupError,
+  } = await supabase
+    .from('reading_history')
+    .select('id')
+    .eq(
+      'user_id',
+      userId
+    )
+    .eq(
+      'novel_id',
+      novelId
+    )
+    .maybeSingle();
 
   if (lookupError) {
     throw lookupError;
   }
 
   if (existing) {
-    const { error } = await supabase
+    const {
+      error,
+    } = await supabase
       .from('reading_history')
       .update({
-        chapter_id: chapterId,
-        progress: safeProgress,
+        chapter_id:
+          chapterId,
+        progress:
+          safeProgress,
         last_read_at:
           new Date().toISOString(),
       })
-      .eq('id', existing.id);
+      .eq(
+        'id',
+        existing.id
+      );
 
     if (error) {
       throw error;
     }
-  } else {
-    const { error } = await supabase
-      .from('reading_history')
-      .insert({
-        user_id: userId,
-        novel_id: novelId,
-        chapter_id: chapterId,
-        progress: safeProgress,
-        last_read_at:
-          new Date().toISOString(),
-      });
 
-    if (error) {
-      throw error;
-    }
+    return;
+  }
+
+  const {
+    error,
+  } = await supabase
+    .from('reading_history')
+    .insert({
+      user_id:
+        userId,
+      novel_id:
+        novelId,
+      chapter_id:
+        chapterId,
+      progress:
+        safeProgress,
+      last_read_at:
+        new Date().toISOString(),
+    });
+
+  if (error) {
+    throw error;
   }
 }
 
@@ -603,11 +1219,19 @@ export async function deleteReadingHistory(
     return;
   }
 
-  const { error } = await supabase
+  const {
+    error,
+  } = await supabase
     .from('reading_history')
     .delete()
-    .eq('user_id', userId)
-    .eq('novel_id', novelId);
+    .eq(
+      'user_id',
+      userId
+    )
+    .eq(
+      'novel_id',
+      novelId
+    );
 
   if (error) {
     throw error;
@@ -628,36 +1252,53 @@ async function attachCommentProfiles(
   const userIds = [
     ...new Set(
       comments.map(
-        (comment) => comment.user_id
+        (comment) =>
+          comment.user_id
       )
     ),
   ];
 
-  const { data: profiles, error } =
-    await supabase
-      .from('profiles')
-      .select('*')
-      .in('id', userIds);
+  if (userIds.length === 0) {
+    return comments;
+  }
+
+  const {
+    data: profiles,
+    error,
+  } = await supabase
+    .from('profiles')
+    .select('*')
+    .in(
+      'id',
+      userIds
+    );
 
   if (error) {
     throw error;
   }
 
-  const profilesById = new Map(
-    (profiles || []).map(
-      (profile) => [
-        profile.id,
-        profile as Profile,
-      ]
-    )
-  );
+  const profilesById =
+    new Map<
+      string,
+      Profile
+    >(
+      (profiles || []).map(
+        (profile) => [
+          profile.id,
+          profile as Profile,
+        ]
+      )
+    );
 
-  return comments.map((comment) => ({
-    ...comment,
-    profile: profilesById.get(
-      comment.user_id
-    ),
-  }));
+  return comments.map(
+    (comment) => ({
+      ...comment,
+      profile:
+        profilesById.get(
+          comment.user_id
+        ),
+    })
+  );
 }
 
 export async function fetchMyComments(
@@ -667,20 +1308,30 @@ export async function fetchMyComments(
     return [];
   }
 
-  const { data, error } = await supabase
+  const {
+    data,
+    error,
+  } = await supabase
     .from('comments')
     .select('*')
-    .eq('user_id', userId)
-    .order('created_at', {
-      ascending: false,
-    });
+    .eq(
+      'user_id',
+      userId
+    )
+    .order(
+      'created_at',
+      {
+        ascending: false,
+      }
+    );
 
   if (error) {
     throw error;
   }
 
   return attachCommentProfiles(
-    (data || []) as Comment[]
+    (data ||
+      []) as Comment[]
   );
 }
 
@@ -691,21 +1342,34 @@ export async function fetchNovelComments(
     return [];
   }
 
-  const { data, error } = await supabase
+  const {
+    data,
+    error,
+  } = await supabase
     .from('comments')
     .select('*')
-    .eq('novel_id', novelId)
-    .is('chapter_id', null)
-    .order('created_at', {
-      ascending: false,
-    });
+    .eq(
+      'novel_id',
+      novelId
+    )
+    .is(
+      'chapter_id',
+      null
+    )
+    .order(
+      'created_at',
+      {
+        ascending: false,
+      }
+    );
 
   if (error) {
     throw error;
   }
 
   return attachCommentProfiles(
-    (data || []) as Comment[]
+    (data ||
+      []) as Comment[]
   );
 }
 
@@ -717,21 +1381,34 @@ export async function fetchChapterComments(
     return [];
   }
 
-  const { data, error } = await supabase
+  const {
+    data,
+    error,
+  } = await supabase
     .from('comments')
     .select('*')
-    .eq('novel_id', novelId)
-    .eq('chapter_id', chapterId)
-    .order('created_at', {
-      ascending: false,
-    });
+    .eq(
+      'novel_id',
+      novelId
+    )
+    .eq(
+      'chapter_id',
+      chapterId
+    )
+    .order(
+      'created_at',
+      {
+        ascending: false,
+      }
+    );
 
   if (error) {
     throw error;
   }
 
   return attachCommentProfiles(
-    (data || []) as Comment[]
+    (data ||
+      []) as Comment[]
   );
 }
 
@@ -746,7 +1423,8 @@ export async function addComment(
     return;
   }
 
-  const trimmedContent = content.trim();
+  const trimmedContent =
+    content.trim();
 
   if (!trimmedContent) {
     throw new Error(
@@ -754,14 +1432,21 @@ export async function addComment(
     );
   }
 
-  const { error } = await supabase
+  const {
+    error,
+  } = await supabase
     .from('comments')
     .insert({
-      user_id: userId,
-      novel_id: novelId,
-      chapter_id: chapterId,
-      parent_id: parentId || null,
-      content: trimmedContent,
+      user_id:
+        userId,
+      novel_id:
+        novelId,
+      chapter_id:
+        chapterId,
+      parent_id:
+        parentId || null,
+      content:
+        trimmedContent,
     });
 
   if (error) {
@@ -777,7 +1462,8 @@ export async function updateComment(
     return;
   }
 
-  const trimmedContent = content.trim();
+  const trimmedContent =
+    content.trim();
 
   if (!trimmedContent) {
     throw new Error(
@@ -785,12 +1471,18 @@ export async function updateComment(
     );
   }
 
-  const { error } = await supabase
+  const {
+    error,
+  } = await supabase
     .from('comments')
     .update({
-      content: trimmedContent,
+      content:
+        trimmedContent,
     })
-    .eq('id', commentId);
+    .eq(
+      'id',
+      commentId
+    );
 
   if (error) {
     throw error;
@@ -804,10 +1496,15 @@ export async function deleteComment(
     return;
   }
 
-  const { error } = await supabase
+  const {
+    error,
+  } = await supabase
     .from('comments')
     .delete()
-    .eq('id', commentId);
+    .eq(
+      'id',
+      commentId
+    );
 
   if (error) {
     throw error;
@@ -822,36 +1519,50 @@ export async function toggleCommentLike(
     return false;
   }
 
-  const { data: existing, error: lookupError } =
-    await supabase
-      .from('comment_likes')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('comment_id', commentId)
-      .maybeSingle();
+  const {
+    data: existing,
+    error: lookupError,
+  } = await supabase
+    .from('comment_likes')
+    .select('id')
+    .eq(
+      'user_id',
+      userId
+    )
+    .eq(
+      'comment_id',
+      commentId
+    )
+    .maybeSingle();
 
   if (lookupError) {
     throw lookupError;
   }
 
   if (existing) {
-    const { error: deleteError } =
-      await supabase
-        .from('comment_likes')
-        .delete()
-        .eq('id', existing.id);
+    const {
+      error: deleteError,
+    } = await supabase
+      .from('comment_likes')
+      .delete()
+      .eq(
+        'id',
+        existing.id
+      );
 
     if (deleteError) {
       throw deleteError;
     }
 
-    const { error: decrementError } =
-      await supabase.rpc(
-        'decrement_comment_likes',
-        {
-          comment_id: commentId,
-        }
-      );
+    const {
+      error: decrementError,
+    } = await supabase.rpc(
+      'decrement_comment_likes',
+      {
+        comment_id:
+          commentId,
+      }
+    );
 
     if (decrementError) {
       throw decrementError;
@@ -860,25 +1571,30 @@ export async function toggleCommentLike(
     return false;
   }
 
-  const { error: insertError } =
-    await supabase
-      .from('comment_likes')
-      .insert({
-        user_id: userId,
-        comment_id: commentId,
-      });
+  const {
+    error: insertError,
+  } = await supabase
+    .from('comment_likes')
+    .insert({
+      user_id:
+        userId,
+      comment_id:
+        commentId,
+    });
 
   if (insertError) {
     throw insertError;
   }
 
-  const { error: incrementError } =
-    await supabase.rpc(
-      'increment_comment_likes',
-      {
-        comment_id: commentId,
-      }
-    );
+  const {
+    error: incrementError,
+  } = await supabase.rpc(
+    'increment_comment_likes',
+    {
+      comment_id:
+        commentId,
+    }
+  );
 
   if (incrementError) {
     throw incrementError;
@@ -896,12 +1612,26 @@ export async function reportComment(
     return;
   }
 
-  const { error } = await supabase
+  const trimmedReason =
+    reason.trim();
+
+  if (!trimmedReason) {
+    throw new Error(
+      'Alasan laporan tidak boleh kosong.'
+    );
+  }
+
+  const {
+    error,
+  } = await supabase
     .from('reports')
     .insert({
-      user_id: userId,
-      comment_id: commentId,
-      reason,
+      user_id:
+        userId,
+      comment_id:
+        commentId,
+      reason:
+        trimmedReason,
     });
 
   if (error) {
@@ -920,11 +1650,20 @@ export async function fetchLikedCommentIds(
     return new Set();
   }
 
-  const { data, error } = await supabase
+  const {
+    data,
+    error,
+  } = await supabase
     .from('comment_likes')
     .select('comment_id')
-    .eq('user_id', userId)
-    .in('comment_id', commentIds);
+    .eq(
+      'user_id',
+      userId
+    )
+    .in(
+      'comment_id',
+      commentIds
+    );
 
   if (error) {
     throw error;
@@ -932,7 +1671,11 @@ export async function fetchLikedCommentIds(
 
   return new Set(
     (data || []).map(
-      (row: { comment_id: string }) =>
+      (
+        row: {
+          comment_id: string;
+        }
+      ) =>
         row.comment_id
     )
   );
@@ -949,19 +1692,29 @@ export async function fetchNotifications(
     return [];
   }
 
-  const { data, error } = await supabase
+  const {
+    data,
+    error,
+  } = await supabase
     .from('notifications')
     .select('*')
-    .eq('user_id', userId)
-    .order('created_at', {
-      ascending: false,
-    });
+    .eq(
+      'user_id',
+      userId
+    )
+    .order(
+      'created_at',
+      {
+        ascending: false,
+      }
+    );
 
   if (error) {
     throw error;
   }
 
-  return (data || []) as Notification[];
+  return (data ||
+    []) as Notification[];
 }
 
 export async function markNotificationAsRead(
@@ -971,12 +1724,17 @@ export async function markNotificationAsRead(
     return;
   }
 
-  const { error } = await supabase
+  const {
+    error,
+  } = await supabase
     .from('notifications')
     .update({
       is_read: true,
     })
-    .eq('id', notificationId);
+    .eq(
+      'id',
+      notificationId
+    );
 
   if (error) {
     throw error;
@@ -990,13 +1748,21 @@ export async function markAllNotificationsAsRead(
     return;
   }
 
-  const { error } = await supabase
+  const {
+    error,
+  } = await supabase
     .from('notifications')
     .update({
       is_read: true,
     })
-    .eq('user_id', userId)
-    .eq('is_read', false);
+    .eq(
+      'user_id',
+      userId
+    )
+    .eq(
+      'is_read',
+      false
+    );
 
   if (error) {
     throw error;
@@ -1010,10 +1776,15 @@ export async function deleteNotification(
     return;
   }
 
-  const { error } = await supabase
+  const {
+    error,
+  } = await supabase
     .from('notifications')
     .delete()
-    .eq('id', notificationId);
+    .eq(
+      'id',
+      notificationId
+    );
 
   if (error) {
     throw error;
@@ -1027,14 +1798,23 @@ export async function getUnreadNotificationCount(
     return 0;
   }
 
-  const { count, error } = await supabase
+  const {
+    count,
+    error,
+  } = await supabase
     .from('notifications')
     .select('id', {
       count: 'exact',
       head: true,
     })
-    .eq('user_id', userId)
-    .eq('is_read', false);
+    .eq(
+      'user_id',
+      userId
+    )
+    .eq(
+      'is_read',
+      false
+    );
 
   if (error) {
     throw error;
@@ -1054,17 +1834,25 @@ export async function fetchProfile(
     return null;
   }
 
-  const { data, error } = await supabase
+  const {
+    data,
+    error,
+  } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', userId)
+    .eq(
+      'id',
+      userId
+    )
     .maybeSingle();
 
   if (error) {
     throw error;
   }
 
-  return data as Profile | null;
+  return data as
+    | Profile
+    | null;
 }
 
 export async function createProfile(
@@ -1077,7 +1865,9 @@ export async function createProfile(
     return;
   }
 
-  const { error } = await supabase
+  const {
+    error,
+  } = await supabase
     .from('profiles')
     .insert({
       id: userId,
@@ -1104,10 +1894,16 @@ export async function updateProfile(
     return null;
   }
 
-  const { data, error } = await supabase
+  const {
+    data,
+    error,
+  } = await supabase
     .from('profiles')
     .update(updates)
-    .eq('id', userId)
+    .eq(
+      'id',
+      userId
+    )
     .select('*')
     .single();
 
@@ -1134,7 +1930,8 @@ export async function uploadProfileAvatar(
     );
   }
 
-  const maxSize = 5 * 1024 * 1024;
+  const maxSize =
+    5 * 1024 * 1024;
 
   if (file.size > maxSize) {
     throw new Error(
@@ -1146,32 +1943,40 @@ export async function uploadProfileAvatar(
     file.name
       .split('.')
       .pop()
-      ?.toLowerCase() || 'jpg';
+      ?.toLowerCase() ||
+    'jpg';
 
   const filePath =
     `${userId}/avatar.${fileExt}`;
 
-  const { error: uploadError } =
-    await supabase.storage
-      .from('avatars')
-      .upload(
-        filePath,
-        file,
-        {
-          cacheControl: '3600',
-          upsert: true,
-          contentType: file.type,
-        }
-      );
+  const {
+    error: uploadError,
+  } = await supabase.storage
+    .from('avatars')
+    .upload(
+      filePath,
+      file,
+      {
+        cacheControl:
+          '3600',
+        upsert: true,
+        contentType:
+          file.type,
+      }
+    );
 
   if (uploadError) {
     throw uploadError;
   }
 
-  const { data: publicUrlData } =
+  const {
+    data: publicUrlData,
+  } =
     supabase.storage
       .from('avatars')
-      .getPublicUrl(filePath);
+      .getPublicUrl(
+        filePath
+      );
 
   const avatarUrl =
     publicUrlData.publicUrl;
@@ -1182,13 +1987,18 @@ export async function uploadProfileAvatar(
     );
   }
 
-  const { error: profileError } =
-    await supabase
-      .from('profiles')
-      .update({
-        avatar_url: avatarUrl,
-      })
-      .eq('id', userId);
+  const {
+    error: profileError,
+  } = await supabase
+    .from('profiles')
+    .update({
+      avatar_url:
+        avatarUrl,
+    })
+    .eq(
+      'id',
+      userId
+    );
 
   if (profileError) {
     throw profileError;
@@ -1198,7 +2008,7 @@ export async function uploadProfileAvatar(
 }
 
 // ============================================================
-// ADMIN
+// ADMIN - PROFILES
 // ============================================================
 
 export async function adminFetchAllProfiles(): Promise<Profile[]> {
@@ -1206,18 +2016,25 @@ export async function adminFetchAllProfiles(): Promise<Profile[]> {
     return [];
   }
 
-  const { data, error } = await supabase
+  const {
+    data,
+    error,
+  } = await supabase
     .from('profiles')
     .select('*')
-    .order('created_at', {
-      ascending: false,
-    });
+    .order(
+      'created_at',
+      {
+        ascending: false,
+      }
+    );
 
   if (error) {
     throw error;
   }
 
-  return (data || []) as Profile[];
+  return (data ||
+    []) as Profile[];
 }
 
 export async function adminUpdateProfileRole(
@@ -1228,15 +2045,26 @@ export async function adminUpdateProfileRole(
     return;
   }
 
-  const { error } = await supabase
+  const {
+    error,
+  } = await supabase
     .from('profiles')
-    .update({ role })
-    .eq('id', userId);
+    .update({
+      role,
+    })
+    .eq(
+      'id',
+      userId
+    );
 
   if (error) {
     throw error;
   }
 }
+
+// ============================================================
+// ADMIN - NOVELS
+// ============================================================
 
 export async function adminCreateNovel(
   novel: Partial<Novel>
@@ -1245,14 +2073,18 @@ export async function adminCreateNovel(
     return null;
   }
 
-  const { data: userData, error: userError } =
+  const {
+    data: userData,
+    error: userError,
+  } =
     await supabase.auth.getUser();
 
   if (userError) {
     throw userError;
   }
 
-  const user = userData.user;
+  const user =
+    userData.user;
 
   if (!user) {
     throw new Error(
@@ -1260,21 +2092,26 @@ export async function adminCreateNovel(
     );
   }
 
-  const { data, error } =
-    await supabase
-      .from('novels')
-      .insert({
-        ...novel,
-        author_id: user.id,
-      })
-      .select('*')
-      .maybeSingle();
+  const {
+    data,
+    error,
+  } = await supabase
+    .from('novels')
+    .insert({
+      ...novel,
+      author_id:
+        user.id,
+    })
+    .select('*')
+    .maybeSingle();
 
   if (error) {
     throw error;
   }
 
-  return data as Novel | null;
+  return data as
+    | Novel
+    | null;
 }
 
 export async function adminUpdateNovel(
@@ -1285,10 +2122,15 @@ export async function adminUpdateNovel(
     return;
   }
 
-  const { error } = await supabase
+  const {
+    error,
+  } = await supabase
     .from('novels')
     .update(updates)
-    .eq('id', id);
+    .eq(
+      'id',
+      id
+    );
 
   if (error) {
     throw error;
@@ -1302,10 +2144,15 @@ export async function adminDeleteNovel(
     return;
   }
 
-  const { error } = await supabase
+  const {
+    error,
+  } = await supabase
     .from('novels')
     .delete()
-    .eq('id', id);
+    .eq(
+      'id',
+      id
+    );
 
   if (error) {
     throw error;
@@ -1313,7 +2160,7 @@ export async function adminDeleteNovel(
 }
 
 // ============================================================
-// ADMIN CHAPTERS
+// ADMIN - CHAPTERS
 // ============================================================
 
 export async function adminCreateChapter(
@@ -1323,18 +2170,22 @@ export async function adminCreateChapter(
     return null;
   }
 
-  const { data, error } =
-    await supabase
-      .from('chapters')
-      .insert(chapter)
-      .select('*')
-      .maybeSingle();
+  const {
+    data,
+    error,
+  } = await supabase
+    .from('chapters')
+    .insert(chapter)
+    .select('*')
+    .maybeSingle();
 
   if (error) {
     throw error;
   }
 
-  return data as Chapter | null;
+  return data as
+    | Chapter
+    | null;
 }
 
 export async function adminUpdateChapter(
@@ -1345,11 +2196,15 @@ export async function adminUpdateChapter(
     return;
   }
 
-  const { error } =
-    await supabase
-      .from('chapters')
-      .update(updates)
-      .eq('id', id);
+  const {
+    error,
+  } = await supabase
+    .from('chapters')
+    .update(updates)
+    .eq(
+      'id',
+      id
+    );
 
   if (error) {
     throw error;
@@ -1363,11 +2218,15 @@ export async function adminDeleteChapter(
     return;
   }
 
-  const { error } =
-    await supabase
-      .from('chapters')
-      .delete()
-      .eq('id', id);
+  const {
+    error,
+  } = await supabase
+    .from('chapters')
+    .delete()
+    .eq(
+      'id',
+      id
+    );
 
   if (error) {
     throw error;
@@ -1375,7 +2234,7 @@ export async function adminDeleteChapter(
 }
 
 // ============================================================
-// ADMIN COMMENTS
+// ADMIN - COMMENTS
 // ============================================================
 
 export async function adminFetchAllComments(): Promise<Comment[]> {
@@ -1383,20 +2242,26 @@ export async function adminFetchAllComments(): Promise<Comment[]> {
     return [];
   }
 
-  const { data, error } =
-    await supabase
-      .from('comments')
-      .select('*')
-      .order('created_at', {
+  const {
+    data,
+    error,
+  } = await supabase
+    .from('comments')
+    .select('*')
+    .order(
+      'created_at',
+      {
         ascending: false,
-      });
+      }
+    );
 
   if (error) {
     throw error;
   }
 
   return attachCommentProfiles(
-    (data || []) as Comment[]
+    (data ||
+      []) as Comment[]
   );
 }
 
@@ -1407,11 +2272,15 @@ export async function adminDeleteComment(
     return;
   }
 
-  const { error } =
-    await supabase
-      .from('comments')
-      .delete()
-      .eq('id', id);
+  const {
+    error,
+  } = await supabase
+    .from('comments')
+    .delete()
+    .eq(
+      'id',
+      id
+    );
 
   if (error) {
     throw error;
@@ -1419,7 +2288,7 @@ export async function adminDeleteComment(
 }
 
 // ============================================================
-// ADMIN REPORTS
+// ADMIN - REPORTS
 // ============================================================
 
 export interface AdminReport {
@@ -1447,35 +2316,50 @@ export async function adminFetchReports(): Promise<
     return [];
   }
 
-  const { data, error } =
-    await supabase
-      .from('reports')
-      .select(
-        '*, comment:comments(*)'
-      )
-      .order('created_at', {
+  const {
+    data,
+    error,
+  } = await supabase
+    .from('reports')
+    .select(
+      '*, comment:comments(*)'
+    )
+    .order(
+      'created_at',
+      {
         ascending: false,
-      });
+      }
+    );
 
   if (error) {
     throw error;
   }
 
   const reports =
-    (data || []) as AdminReport[];
+    (data ||
+      []) as AdminReport[];
 
   const userIds = [
     ...new Set(
-      reports.flatMap((report) => [
-        report.user_id,
-        ...(report.comment
-          ? [report.comment.user_id]
-          : []),
-      ])
+      reports.flatMap(
+        (report) => [
+          report.user_id,
+
+          ...(report.comment
+            ? [
+                report
+                  .comment
+                  .user_id,
+              ]
+            : []),
+        ]
+      )
     ),
   ];
 
-  if (userIds.length === 0) {
+  if (
+    userIds.length === 0
+  ) {
     return reports;
   }
 
@@ -1484,40 +2368,58 @@ export async function adminFetchReports(): Promise<
     error: profilesError,
   } = await supabase
     .from('profiles')
-    .select('id, username')
-    .in('id', userIds);
+    .select(
+      'id, username'
+    )
+    .in(
+      'id',
+      userIds
+    );
 
   if (profilesError) {
     throw profilesError;
   }
 
-  const profilesById = new Map(
-    (profiles || []).map(
-      (profile) => [
-        profile.id,
-        profile,
-      ]
-    )
+  const profilesById =
+    new Map<
+      string,
+      {
+        id: string;
+        username: string;
+      }
+    >(
+      (profiles || []).map(
+        (profile) => [
+          profile.id,
+          profile,
+        ]
+      )
+    );
+
+  return reports.map(
+    (report) => ({
+      ...report,
+
+      profile:
+        profilesById.get(
+          report.user_id
+        ) || null,
+
+      comment:
+        report.comment
+          ? {
+              ...report.comment,
+
+              profile:
+                profilesById.get(
+                  report
+                    .comment
+                    .user_id
+                ) || null,
+            }
+          : null,
+    })
   );
-
-  return reports.map((report) => ({
-    ...report,
-
-    profile:
-      profilesById.get(
-        report.user_id
-      ) || null,
-
-    comment: report.comment
-      ? {
-          ...report.comment,
-          profile:
-            profilesById.get(
-              report.comment.user_id
-            ) || null,
-        }
-      : null,
-  }));
 }
 
 export async function adminUpdateReportStatus(
@@ -1528,11 +2430,17 @@ export async function adminUpdateReportStatus(
     return;
   }
 
-  const { error } =
-    await supabase
-      .from('reports')
-      .update({ status })
-      .eq('id', id);
+  const {
+    error,
+  } = await supabase
+    .from('reports')
+    .update({
+      status,
+    })
+    .eq(
+      'id',
+      id
+    );
 
   if (error) {
     throw error;
