@@ -37,6 +37,7 @@ import AuthorNovels from '@/pages/AuthorNovels';
 import EditNovel from '@/pages/EditNovel';
 import AuthorChapters from '@/pages/AuthorChapters';
 import CreateChapter from '@/pages/CreateChapter';
+import AuthorChapterSelect from '@/pages/AuthorChapterSelect';
 
 function App() {
   return (
@@ -94,9 +95,13 @@ function App() {
             />
             <Route
               path="/author/novels/:id/chapters/new"
-              element={<CreateChapter />}
+              element={<CreateChapter />} />
+            <Route
+              path="/author/chapters"
+              element={<AuthorChapterSelect />}
             />
           </Route>
+          
 
           {/* =========================
               ADMIN
