@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Star, Eye, Bookmark } from 'lucide-react';
+import { Star, Eye, Bookmark, BookOpen } from 'lucide-react';
 import type { Novel } from '@/types';
 import { getCoverGradient, formatViews, formatDate } from '@/lib/utils';
 
@@ -12,8 +12,13 @@ interface NovelCardProps {
 export default function NovelCard({
   novel,
   rank,
-  showLatestChapter,
+  showLatestChapter = false,
 }: NovelCardProps) {
+  const chapterCount = Number(novel.chapter_count || 0);
+  const views = Number(novel.views || 0);
+  const bookmarkCount = Number(novel.bookmark_count || 0);
+  const rating = Number(novel.rating || 0);
+
   return (
     <Link
       to={`/novel/${novel.slug}`}
@@ -32,25 +37,23 @@ export default function NovelCard({
             <div
               className="absolute inset-0 transition-transform duration-500 group-hover:scale-105"
               style={{
-                background: getCoverGradient(
-                  novel.cover_url
-                ),
+                background: getCoverGradient(novel.cover_url),
               }}
             />
           )}
 
           {rank !== undefined && (
-            <div className="absolute top-2 left-2 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-bg/80 backdrop-blur-sm text-sm font-bold text-primary-300">
+            <div className="absolute left-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-bg/80 text-sm font-bold text-primary-300 backdrop-blur-sm">
               {rank}
             </div>
           )}
 
-          <div className="absolute top-2 right-2 z-10 badge bg-bg/80 backdrop-blur-sm text-rating">
+          <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-lg bg-bg/80 px-2 py-1 text-xs font-medium text-rating backdrop-blur-sm">
             <Star className="h-3 w-3 fill-rating text-rating" />
-            {Number(novel.rating).toFixed(1)}
+            {rating.toFixed(1)}
           </div>
 
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
           <div className="absolute bottom-2 left-2 right-2 z-10">
             <span
@@ -72,49 +75,56 @@ export default function NovelCard({
         </div>
 
         <div className="p-3">
-          <h3 className="line-clamp-2 text-sm font-semibold text-white group-hover:text-primary-300 transition-colors">
+          <h3 className="line-clamp-2 text-sm font-semibold text-white transition-colors group-hover:text-primary-300">
             {novel.title}
           </h3>
 
-          <p className="mt-1 text-xs text-muted truncate">
+          <p className="mt-1 truncate text-xs text-muted">
             {novel.author}
           </p>
 
-          {novel.genres &&
-            novel.genres.length > 0 && (
-              <p className="mt-1 text-xs text-primary-400/80 truncate">
-                {novel.genres
-                  .map((g) => g.name)
-                  .join(', ')}
-              </p>
-            )}
+          {novel.genres && novel.genres.length > 0 && (
+            <p className="mt-1 truncate text-xs text-primary-400/80">
+              {novel.genres
+                .map((genre) => genre.name)
+                .join(', ')}
+            </p>
+          )}
 
-          <div className="mt-2 flex items-center gap-3 text-xs text-muted">
-            <span className="flex items-center gap-1">
-              <Eye className="h-3 w-3" />
-              {formatViews(novel.views)}
-            </span>
+          <div className="mt-3 grid grid-cols-3 gap-1 border-t border-white/5 pt-2">
+            <div className="flex min-w-0 items-center gap-1">
+              <Eye className="h-3.5 w-3.5 shrink-0 text-muted" />
+              <span className="truncate text-xs font-medium text-white">
+                {formatViews(views)}
+              </span>
+            </div>
 
-            <span className="flex items-center gap-1">
-              <Bookmark className="h-3 w-3" />
-              {formatViews(novel.bookmark_count)}
-            </span>
+            <div className="flex min-w-0 items-center gap-1">
+              <BookOpen className="h-3.5 w-3.5 shrink-0 text-muted" />
+              <span className="truncate text-xs font-medium text-white">
+                {chapterCount}
+              </span>
+            </div>
+
+            <div className="flex min-w-0 items-center gap-1">
+              <Bookmark className="h-3.5 w-3.5 shrink-0 text-muted" />
+              <span className="truncate text-xs font-medium text-white">
+                {formatViews(bookmarkCount)}
+              </span>
+            </div>
           </div>
 
-          {showLatestChapter &&
-            novel.latest_chapter && (
-              <div className="mt-2 flex items-center justify-between border-t border-white/5 pt-2">
-                <span className="text-xs text-muted truncate">
-                  Bab {novel.latest_chapter.chapter_number}
-                </span>
+          {showLatestChapter && novel.latest_chapter && (
+            <div className="mt-2 flex items-center justify-between border-t border-white/5 pt-2">
+              <span className="truncate text-xs text-muted">
+                Bab {novel.latest_chapter.chapter_number}
+              </span>
 
-                <span className="text-xs text-muted/70">
-                  {formatDate(
-                    novel.latest_chapter.created_at
-                  )}
-                </span>
-              </div>
-            )}
+              <span className="ml-2 shrink-0 text-xs text-muted/70">
+                {formatDate(novel.latest_chapter.created_at)}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </Link>
@@ -126,10 +136,16 @@ export function NovelCardSkeleton() {
     <div className="card overflow-hidden">
       <div className="skeleton aspect-[3/4] rounded-t-2xl" />
 
-      <div className="p-3 space-y-2">
+      <div className="space-y-2 p-3">
         <div className="skeleton h-4 w-3/4" />
         <div className="skeleton h-3 w-1/2" />
         <div className="skeleton h-3 w-2/3" />
+
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="skeleton h-8 w-full" />
+          <div className="skeleton h-8 w-full" />
+          <div className="skeleton h-8 w-full" />
+        </div>
       </div>
     </div>
   );

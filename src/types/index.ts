@@ -1,5 +1,7 @@
 export type NovelStatus = 'ongoing' | 'completed' | 'hiatus';
+
 export type UserRole = 'reader' | 'author' | 'admin';
+
 export type ReaderTheme = 'dark' | 'black' | 'sepia' | 'light';
 
 export interface Profile {
@@ -54,6 +56,9 @@ export interface Chapter {
   views: number;
   created_at: string;
   updated_at: string;
+  scheduled_at: string | null;
+  published_at: string | null;
+  status: string;
 }
 
 export interface Bookmark {
