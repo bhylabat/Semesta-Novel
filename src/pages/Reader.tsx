@@ -23,6 +23,7 @@ import {
   fetchChapterByNumber,
   fetchChapters,
   fetchNovelBySlug,
+  recordChapterView,
   updateReadingHistory,
 } from '@/lib/services';
 import {
@@ -186,6 +187,16 @@ export default function Reader() {
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (!chapter) {
+      return;
+    }
+
+    void recordChapterView(chapter.id).catch((err) => {
+      console.error('Failed to record chapter view:', err);
+    });
+  }, [chapter]);
 
   /*
    * ============================================================
