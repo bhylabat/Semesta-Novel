@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   BookOpen,
+  CalendarClock,
   ChevronRight,
   Edit,
   Eye,
@@ -21,22 +22,27 @@ interface NovelInfo {
   author_id: string;
 }
 
+interface ChapterWithSchedule extends Chapter {
+  status: 'draft' | 'scheduled' | 'published';
+  scheduled_at: string | null;
+  published_at: string | null;
+}
+
 export default function AuthorChapters() {
   const { id } = useParams<{ id: string }>();
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
 
   const [novel, setNovel] = useState<NovelInfo | null>(null);
-  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [chapters, setChapters] = useState<
+    ChapterWithSchedule[]
+  >([]);
   const [loadingData, setLoadingData] = useState(true);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(
+    null
+  );
   const [error, setError] = useState('');
 
-  /*
-   * =========================
-   * CEK LOGIN & ROLE
-   * =========================
-   */
   useEffect(() => {
     if (loading) return;
 
@@ -53,11 +59,6 @@ export default function AuthorChapters() {
     }
   }, [user, profile, loading, navigate]);
 
-  /*
-   * =========================
-   * LOAD NOVEL & CHAPTERS
-   * =========================
-   */
   useEffect(() => {
     if (loading || !user || !id) return;
 
@@ -66,9 +67,6 @@ export default function AuthorChapters() {
         setLoadingData(true);
         setError('');
 
-        /*
-         * Ambil data novel
-         */
         const { data: novelData, error: novelError } =
           await supabase
             .from('novels')
@@ -88,10 +86,6 @@ export default function AuthorChapters() {
           return;
         }
 
-        /*
-         * Author hanya boleh mengelola novel miliknya.
-         * Admin boleh mengelola semua novel.
-         */
         if (
           profile?.role !== 'admin' &&
           novelData.author_id !== user.id
@@ -107,16 +101,25 @@ export default function AuthorChapters() {
 
         setNovel(novelData);
 
-        /*
-         * Ambil semua bab
-         */
         const {
           data: chapterData,
           error: chapterError,
         } = await supabase
           .from('chapters')
           .select(
-            'id, novel_id, chapter_number, title, content, views, created_at, updated_at'
+            `
+              id,
+              novel_id,
+              chapter_number,
+              title,
+              content,
+              views,
+              created_at,
+              updated_at,
+              status,
+              scheduled_at,
+              published_at
+            `
           )
           .eq('novel_id', id)
           .order('chapter_number', {
@@ -132,7 +135,9 @@ export default function AuthorChapters() {
           throw chapterError;
         }
 
-        setChapters(chapterData || []);
+        setChapters(
+          (chapterData || []) as ChapterWithSchedule[]
+        );
       } catch (err) {
         console.error(
           'Failed to load author chapters:',
@@ -152,12 +157,9 @@ export default function AuthorChapters() {
     void loadData();
   }, [user, loading, id, profile?.role]);
 
-  /*
-   * =========================
-   * DELETE CHAPTER
-   * =========================
-   */
-  const handleDelete = async (chapter: Chapter) => {
+  const handleDelete = async (
+    chapter: ChapterWithSchedule
+  ) => {
     if (!user || !novel) return;
 
     const confirmed = window.confirm(
@@ -208,11 +210,46 @@ export default function AuthorChapters() {
     }
   };
 
-  /*
-   * =========================
-   * LOADING AUTH
-   * =========================
-   */
+  const formatSchedule = (
+    scheduledAt: string
+  ) => {
+    return new Date(
+      scheduledAt
+    ).toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getStatus = (
+    chapter: ChapterWithSchedule
+  ) => {
+    if (chapter.status === 'scheduled') {
+      return {
+        label: 'Terjadwal',
+        className:
+          'bg-amber-500/10 text-amber-300 border-amber-500/20',
+      };
+    }
+
+    if (chapter.status === 'published') {
+      return {
+        label: 'Terbit',
+        className:
+          'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
+      };
+    }
+
+    return {
+      label: 'Draft',
+      className:
+        'bg-white/5 text-muted border-white/10',
+    };
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-bg text-white flex items-center justify-center px-4">
@@ -227,20 +264,10 @@ export default function AuthorChapters() {
     );
   }
 
-  /*
-   * =========================
-   * USER BELUM LOGIN
-   * =========================
-   */
   if (!user) {
     return null;
   }
 
-  /*
-   * =========================
-   * LOADING DATA
-   * =========================
-   */
   if (loadingData) {
     return (
       <div className="min-h-screen bg-bg text-white">
@@ -263,38 +290,21 @@ export default function AuthorChapters() {
             </div>
 
             <div className="divide-y divide-white/5">
-              <div className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="skeleton h-10 w-10 rounded-xl" />
+              {[1, 2, 3].map((item) => (
+                <div
+                  key={item}
+                  className="p-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="skeleton h-10 w-10 rounded-xl" />
 
-                  <div className="flex-1">
-                    <div className="skeleton h-4 w-32 rounded-lg mb-2" />
-                    <div className="skeleton h-3 w-48 rounded-lg" />
+                    <div className="flex-1">
+                      <div className="skeleton h-4 w-32 rounded-lg mb-2" />
+                      <div className="skeleton h-3 w-48 rounded-lg" />
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="skeleton h-10 w-10 rounded-xl" />
-
-                  <div className="flex-1">
-                    <div className="skeleton h-4 w-32 rounded-lg mb-2" />
-                    <div className="skeleton h-3 w-48 rounded-lg" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="skeleton h-10 w-10 rounded-xl" />
-
-                  <div className="flex-1">
-                    <div className="skeleton h-4 w-32 rounded-lg mb-2" />
-                    <div className="skeleton h-3 w-48 rounded-lg" />
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
@@ -302,20 +312,11 @@ export default function AuthorChapters() {
     );
   }
 
-  /*
-   * =========================
-   * MAIN PAGE
-   * =========================
-   */
   return (
     <div className="min-h-screen bg-bg text-white">
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 md:py-8">
 
-        {/* =========================
-            HEADER
-        ========================== */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-
           <div className="min-w-0">
             <Link
               to="/author/novels"
@@ -358,9 +359,6 @@ export default function AuthorChapters() {
           </button>
         </div>
 
-        {/* =========================
-            ERROR
-        ========================== */}
         {error && (
           <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 mb-5">
             <p className="text-sm text-red-400">
@@ -369,9 +367,6 @@ export default function AuthorChapters() {
           </div>
         )}
 
-        {/* =========================
-            NOVEL INFO
-        ========================== */}
         {novel && (
           <div className="card p-4 md:p-5 mb-5">
             <div className="flex items-center justify-between gap-4">
@@ -390,6 +385,7 @@ export default function AuthorChapters() {
                 className="flex-shrink-0 inline-flex items-center gap-2 text-sm text-muted hover:text-primary-300 transition-colors"
               >
                 <Edit className="h-4 w-4" />
+
                 <span className="hidden sm:inline">
                   Edit Novel
                 </span>
@@ -398,11 +394,7 @@ export default function AuthorChapters() {
           </div>
         )}
 
-        {/* =========================
-            CHAPTER LIST
-        ========================== */}
         <div className="card overflow-hidden">
-
           <div className="p-4 md:p-5 border-b border-white/5">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -438,9 +430,6 @@ export default function AuthorChapters() {
           </div>
 
           {chapters.length === 0 ? (
-            /* =========================
-               EMPTY STATE
-            ========================== */
             <div className="p-10 text-center">
               <div className="mx-auto h-14 w-14 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
                 <BookOpen className="h-6 w-6 text-muted" />
@@ -470,130 +459,128 @@ export default function AuthorChapters() {
               </button>
             </div>
           ) : (
-            /* =========================
-               CHAPTERS
-            ========================== */
             <div className="divide-y divide-white/5">
-              {chapters.map((chapter) => (
-                <div
-                  key={chapter.id}
-                  className="p-4 hover:bg-white/[0.03] transition-colors"
-                >
-                  <div className="flex items-center gap-3">
+              {chapters.map((chapter) => {
+                const status = getStatus(chapter);
 
-                    {/* Chapter Number */}
-                    <div className="flex-shrink-0 h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <span className="text-sm font-bold text-primary-300">
-                        {chapter.chapter_number}
-                      </span>
-                    </div>
-
-                    {/* Chapter Information */}
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-sm font-semibold text-white truncate">
-                        Bab {chapter.chapter_number}
-                      </h3>
-
-                      <p className="text-xs text-muted truncate mt-1">
-                        {chapter.title ||
-                          'Tanpa judul'}
-                      </p>
-
-                      <div className="flex items-center gap-3 mt-2">
-
-                        <span className="flex items-center gap-1 text-[11px] text-muted">
-                          <Eye className="h-3 w-3" />
-                          {chapter.views || 0}
+                return (
+                  <div
+                    key={chapter.id}
+                    className="p-4 hover:bg-white/[0.03] transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0 h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <span className="text-sm font-bold text-primary-300">
+                          {chapter.chapter_number}
                         </span>
+                      </div>
 
-                        {chapter.updated_at && (
-                          <span className="text-[11px] text-muted">
-                            {new Date(
-                              chapter.updated_at
-                            ).toLocaleDateString(
-                              'id-ID'
-                            )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-sm font-semibold text-white truncate">
+                            Bab {chapter.chapter_number}
+                          </h3>
+
+                          <span
+                            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${status.className}`}
+                          >
+                            {status.label}
                           </span>
+                        </div>
+
+                        <p className="text-xs text-muted truncate mt-1">
+                          {chapter.title ||
+                            'Tanpa judul'}
+                        </p>
+
+                        <div className="flex flex-wrap items-center gap-3 mt-2">
+                          {chapter.status ===
+                            'scheduled' &&
+                            chapter.scheduled_at && (
+                              <span className="flex items-center gap-1 text-[11px] text-amber-300">
+                                <CalendarClock className="h-3 w-3" />
+                                {formatSchedule(
+                                  chapter.scheduled_at
+                                )}
+                              </span>
+                            )}
+
+                          <span className="flex items-center gap-1 text-[11px] text-muted">
+                            <Eye className="h-3 w-3" />
+                            {chapter.views || 0}
+                          </span>
+
+                          {chapter.updated_at && (
+                            <span className="text-[11px] text-muted">
+                              {new Date(
+                                chapter.updated_at
+                              ).toLocaleDateString(
+                                'id-ID'
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!id) return;
+
+                            navigate(
+                              `/author/novels/${id}/chapters/${chapter.id}/edit`
+                            );
+                          }}
+                          className="h-9 w-9 rounded-lg flex items-center justify-center text-muted hover:text-primary-300 hover:bg-primary/10 transition-colors"
+                          title="Edit Bab"
+                          aria-label="Edit Bab"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleDelete(
+                              chapter
+                            )
+                          }
+                          disabled={
+                            deletingId ===
+                            chapter.id
+                          }
+                          className="h-9 w-9 rounded-lg flex items-center justify-center text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                          title="Hapus Bab"
+                          aria-label="Hapus Bab"
+                        >
+                          {deletingId ===
+                          chapter.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </button>
+
+                        {chapter.status ===
+                          'published' && (
+                          <Link
+                            to={`/read/${novel?.id}/${chapter.chapter_number}`}
+                            className="hidden sm:flex h-9 w-9 rounded-lg items-center justify-center text-muted hover:text-white hover:bg-white/5 transition-colors"
+                            title="Lihat Bab"
+                            aria-label="Lihat Bab"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Link>
                         )}
                       </div>
                     </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-1 flex-shrink-0">
-
-                      {/* Edit */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!id) return;
-
-                          navigate(
-                            `/author/novels/${id}/chapters/${chapter.id}/edit`
-                          );
-                        }}
-                        className="h-9 w-9 rounded-lg flex items-center justify-center text-muted hover:text-primary-300 hover:bg-primary/10 transition-colors"
-                        title="Edit Bab"
-                        aria-label="Edit Bab"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-
-                      {/* Delete */}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void handleDelete(chapter)
-                        }
-                        disabled={
-                          deletingId === chapter.id
-                        }
-                        className="h-9 w-9 rounded-lg flex items-center justify-center text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-                        title="Hapus Bab"
-                        aria-label="Hapus Bab"
-                      >
-                        {deletingId === chapter.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                      </button>
-
-                      {/* View */}
-                      <Link
-                        to={`/read/${novel?.id}/${chapter.chapter_number}`}
-                        className="hidden sm:flex h-9 w-9 rounded-lg items-center justify-center text-muted hover:text-white hover:bg-white/5 transition-colors"
-                        title="Lihat Bab"
-                        aria-label="Lihat Bab"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Link>
-                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
-
-        {/* =========================
-            MOBILE ADD BUTTON
-        ========================== */}
-        {chapters.length > 0 && (
-          <button
-            type="button"
-            onClick={() => {
-              if (!id) return;
-
-              navigate(
-                `/author/novels/${id}/chapters/new`
-              );
-            }}
-            className="btn-primary w-full mt-4 sm:hidden"
-          >
-            <Plus className="h-4 w-4" />
-            Tambah Bab
-          </button>
-        )}
       </div>
     </div>
   );

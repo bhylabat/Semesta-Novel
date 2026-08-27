@@ -147,7 +147,9 @@ export async function fetchNovelBySlug(
       .from('chapters')
       .select('*')
       .eq('novel_id', novel.id)
-      .order('chapter_number', { ascending: false })
+      .order('chapter_number', {
+        ascending: false,
+      })
       .limit(1)
       .maybeSingle();
 
@@ -344,6 +346,52 @@ export async function fetchLatestChapters(
   return (data || []) as Chapter[];
 }
 
+/**
+ * Mencatat 1 view untuk sebuah bab.
+ *
+ * View dicatat ketika pembaca membuka bab,
+ * bukan berdasarkan scroll.
+ */
+export async function recordChapterView(
+  chapterId: string
+): Promise<void> {
+  if (!isSupabaseConfigured) {
+    return;
+  }
+
+  const { data: chapter, error: fetchError } =
+    await supabase
+      .from('chapters')
+      .select('id, views')
+      .eq('id', chapterId)
+      .maybeSingle();
+
+  if (fetchError) {
+    throw fetchError;
+  }
+
+  if (!chapter) {
+    return;
+  }
+
+  const currentViews =
+    typeof chapter.views === 'number'
+      ? chapter.views
+      : Number(chapter.views || 0);
+
+  const { error: updateError } =
+    await supabase
+      .from('chapters')
+      .update({
+        views: currentViews + 1,
+      })
+      .eq('id', chapterId);
+
+  if (updateError) {
+    throw updateError;
+  }
+}
+
 // ============================================================
 // GENRES
 // ============================================================
@@ -498,6 +546,11 @@ export async function updateReadingHistory(
     return;
   }
 
+  const safeProgress = Math.min(
+    100,
+    Math.max(0, progress)
+  );
+
   const { data: existing, error: lookupError } =
     await supabase
       .from('reading_history')
@@ -515,7 +568,7 @@ export async function updateReadingHistory(
       .from('reading_history')
       .update({
         chapter_id: chapterId,
-        progress,
+        progress: safeProgress,
         last_read_at:
           new Date().toISOString(),
       })
@@ -531,7 +584,9 @@ export async function updateReadingHistory(
         user_id: userId,
         novel_id: novelId,
         chapter_id: chapterId,
-        progress,
+        progress: safeProgress,
+        last_read_at:
+          new Date().toISOString(),
       });
 
     if (error) {
@@ -691,6 +746,14 @@ export async function addComment(
     return;
   }
 
+  const trimmedContent = content.trim();
+
+  if (!trimmedContent) {
+    throw new Error(
+      'Komentar tidak boleh kosong.'
+    );
+  }
+
   const { error } = await supabase
     .from('comments')
     .insert({
@@ -698,7 +761,7 @@ export async function addComment(
       novel_id: novelId,
       chapter_id: chapterId,
       parent_id: parentId || null,
-      content,
+      content: trimmedContent,
     });
 
   if (error) {
@@ -714,9 +777,19 @@ export async function updateComment(
     return;
   }
 
+  const trimmedContent = content.trim();
+
+  if (!trimmedContent) {
+    throw new Error(
+      'Komentar tidak boleh kosong.'
+    );
+  }
+
   const { error } = await supabase
     .from('comments')
-    .update({ content })
+    .update({
+      content: trimmedContent,
+    })
     .eq('id', commentId);
 
   if (error) {
@@ -1050,51 +1123,72 @@ export async function uploadProfileAvatar(
   file: File
 ): Promise<string> {
   if (!isSupabaseConfigured) {
-    throw new Error('Supabase belum dikonfigurasi.');
+    throw new Error(
+      'Supabase belum dikonfigurasi.'
+    );
   }
 
   if (!file.type.startsWith('image/')) {
-    throw new Error('File yang dipilih harus berupa gambar.');
+    throw new Error(
+      'File yang dipilih harus berupa gambar.'
+    );
   }
 
   const maxSize = 5 * 1024 * 1024;
 
   if (file.size > maxSize) {
-    throw new Error('Ukuran foto maksimal 5 MB.');
+    throw new Error(
+      'Ukuran foto maksimal 5 MB.'
+    );
   }
 
-  const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+  const fileExt =
+    file.name
+      .split('.')
+      .pop()
+      ?.toLowerCase() || 'jpg';
 
-  const filePath = `${userId}/avatar.${fileExt}`;
+  const filePath =
+    `${userId}/avatar.${fileExt}`;
 
-  const { error: uploadError } = await supabase.storage
-    .from('avatars')
-    .upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: true,
-      contentType: file.type,
-    });
+  const { error: uploadError } =
+    await supabase.storage
+      .from('avatars')
+      .upload(
+        filePath,
+        file,
+        {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: file.type,
+        }
+      );
 
   if (uploadError) {
     throw uploadError;
   }
 
-  const { data: publicUrlData } = supabase.storage
-    .from('avatars')
-    .getPublicUrl(filePath);
+  const { data: publicUrlData } =
+    supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath);
 
-  const avatarUrl = publicUrlData.publicUrl;
+  const avatarUrl =
+    publicUrlData.publicUrl;
 
   if (!avatarUrl) {
-    throw new Error('URL foto profil gagal dibuat.');
+    throw new Error(
+      'URL foto profil gagal dibuat.'
+    );
   }
 
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .update({
-      avatar_url: avatarUrl,
-    })
-    .eq('id', userId);
+  const { error: profileError } =
+    await supabase
+      .from('profiles')
+      .update({
+        avatar_url: avatarUrl,
+      })
+      .eq('id', userId);
 
   if (profileError) {
     throw profileError;
@@ -1161,17 +1255,20 @@ export async function adminCreateNovel(
   const user = userData.user;
 
   if (!user) {
-    throw new Error('User belum login');
+    throw new Error(
+      'User belum login'
+    );
   }
 
-  const { data, error } = await supabase
-    .from('novels')
-    .insert({
-      ...novel,
-      author_id: user.id,
-    })
-    .select('*')
-    .maybeSingle();
+  const { data, error } =
+    await supabase
+      .from('novels')
+      .insert({
+        ...novel,
+        author_id: user.id,
+      })
+      .select('*')
+      .maybeSingle();
 
   if (error) {
     throw error;
@@ -1215,6 +1312,10 @@ export async function adminDeleteNovel(
   }
 }
 
+// ============================================================
+// ADMIN CHAPTERS
+// ============================================================
+
 export async function adminCreateChapter(
   chapter: Partial<Chapter>
 ): Promise<Chapter | null> {
@@ -1222,11 +1323,12 @@ export async function adminCreateChapter(
     return null;
   }
 
-  const { data, error } = await supabase
-    .from('chapters')
-    .insert(chapter)
-    .select('*')
-    .maybeSingle();
+  const { data, error } =
+    await supabase
+      .from('chapters')
+      .insert(chapter)
+      .select('*')
+      .maybeSingle();
 
   if (error) {
     throw error;
@@ -1243,10 +1345,11 @@ export async function adminUpdateChapter(
     return;
   }
 
-  const { error } = await supabase
-    .from('chapters')
-    .update(updates)
-    .eq('id', id);
+  const { error } =
+    await supabase
+      .from('chapters')
+      .update(updates)
+      .eq('id', id);
 
   if (error) {
     throw error;
@@ -1260,27 +1363,33 @@ export async function adminDeleteChapter(
     return;
   }
 
-  const { error } = await supabase
-    .from('chapters')
-    .delete()
-    .eq('id', id);
+  const { error } =
+    await supabase
+      .from('chapters')
+      .delete()
+      .eq('id', id);
 
   if (error) {
     throw error;
   }
 }
 
+// ============================================================
+// ADMIN COMMENTS
+// ============================================================
+
 export async function adminFetchAllComments(): Promise<Comment[]> {
   if (!isSupabaseConfigured) {
     return [];
   }
 
-  const { data, error } = await supabase
-    .from('comments')
-    .select('*')
-    .order('created_at', {
-      ascending: false,
-    });
+  const { data, error } =
+    await supabase
+      .from('comments')
+      .select('*')
+      .order('created_at', {
+        ascending: false,
+      });
 
   if (error) {
     throw error;
@@ -1298,10 +1407,11 @@ export async function adminDeleteComment(
     return;
   }
 
-  const { error } = await supabase
-    .from('comments')
-    .delete()
-    .eq('id', id);
+  const { error } =
+    await supabase
+      .from('comments')
+      .delete()
+      .eq('id', id);
 
   if (error) {
     throw error;
@@ -1337,18 +1447,22 @@ export async function adminFetchReports(): Promise<
     return [];
   }
 
-  const { data, error } = await supabase
-    .from('reports')
-    .select('*, comment:comments(*)')
-    .order('created_at', {
-      ascending: false,
-    });
+  const { data, error } =
+    await supabase
+      .from('reports')
+      .select(
+        '*, comment:comments(*)'
+      )
+      .order('created_at', {
+        ascending: false,
+      });
 
   if (error) {
     throw error;
   }
 
-  const reports = (data || []) as AdminReport[];
+  const reports =
+    (data || []) as AdminReport[];
 
   const userIds = [
     ...new Set(
@@ -1378,18 +1492,21 @@ export async function adminFetchReports(): Promise<
   }
 
   const profilesById = new Map(
-    (profiles || []).map((profile) => [
-      profile.id,
-      profile,
-    ])
+    (profiles || []).map(
+      (profile) => [
+        profile.id,
+        profile,
+      ]
+    )
   );
 
   return reports.map((report) => ({
     ...report,
 
     profile:
-      profilesById.get(report.user_id) ||
-      null,
+      profilesById.get(
+        report.user_id
+      ) || null,
 
     comment: report.comment
       ? {
@@ -1411,10 +1528,11 @@ export async function adminUpdateReportStatus(
     return;
   }
 
-  const { error } = await supabase
-    .from('reports')
-    .update({ status })
-    .eq('id', id);
+  const { error } =
+    await supabase
+      .from('reports')
+      .update({ status })
+      .eq('id', id);
 
   if (error) {
     throw error;

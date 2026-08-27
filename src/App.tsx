@@ -38,6 +38,7 @@ import EditNovel from '@/pages/EditNovel';
 import AuthorChapters from '@/pages/AuthorChapters';
 import CreateChapter from '@/pages/CreateChapter';
 import AuthorChapterSelect from '@/pages/AuthorChapterSelect';
+import EditChapter from '@/pages/EditChapter';
 
 function App() {
   return (
@@ -85,24 +86,13 @@ function App() {
             <Route path="/author" element={<AuthorDashboard />} />
             <Route path="/author/create" element={<CreateNovel />} />
             <Route path="/author/novels" element={<AuthorNovels />} />
-            <Route
-              path="/author/novels/:id/edit"
-              element={<EditNovel />}
-            />
-            <Route
-              path="/author/novels/:id/chapters"
-              element={<AuthorChapters />}
-            />
-            <Route
-              path="/author/novels/:id/chapters/new"
-              element={<CreateChapter />} />
-            <Route
-              path="/author/chapters"
-              element={<AuthorChapterSelect />}
-            />
+            <Route path="/author/novels/:id/edit" element={<EditNovel />} />
+            <Route path="/author/novels/:id/chapters"element={<AuthorChapters />} />
+            <Route path="/author/novels/:id/chapters/new" element={<CreateChapter />} />
+            <Route path="/author/novels/:id/chapters/:chapterId/edit"element={<EditChapter />} />
+            <Route path="/author/chapters" element={<AuthorChapterSelect />} />
           </Route>
           
-
           {/* =========================
               ADMIN
           ========================== */}
