@@ -200,7 +200,23 @@ export default function Home() {
                 {history.slice(0, 5).map((h) => (
                   <Link key={h.novel_id} to={`/read/${h.novel?.slug}/${h.chapter?.chapter_number || 1}`} className="group flex-shrink-0 w-80">
                     <div className="card card-hover p-3 flex gap-3">
-                      <div className="flex-shrink-0 w-16 h-24 rounded-lg overflow-hidden" style={{ background: getCoverGradient(h.novel?.cover_url || null) }} />
+                      <div className="flex-shrink-0 w-16 h-24 rounded-lg overflow-hidden bg-black/20">
+                        {h.novel?.cover_url ? (
+                          <img
+                            src={h.novel.cover_url}
+                            alt={`Cover ${h.novel.title}`}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div
+                            className="w-full h-full"
+                            style={{
+                              background: getCoverGradient(h.novel?.cover_url || null),
+                            }}
+                          />
+                        )}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="text-sm font-semibold text-white group-hover:text-primary-300 transition-colors line-clamp-2">
                           {h.novel?.title}
