@@ -79,7 +79,26 @@ export default function History() {
         <div className="space-y-3">
           {history.map((h) => (
             <div key={h.novel_id} className="card p-3 flex gap-3">
-              <Link to={`/novel/${h.novel?.slug}`} className="flex-shrink-0 w-14 h-20 rounded-lg overflow-hidden" style={{ background: getCoverGradient(h.novel?.cover_url || null) }} />
+              <Link
+                to={`/novel/${h.novel?.slug}`}
+                className="flex-shrink-0 w-14 h-20 rounded-lg overflow-hidden bg-black/20"
+              >
+                {h.novel?.cover_url ? (
+                  <img
+                    src={h.novel.cover_url}
+                    alt={`Cover ${h.novel.title}`}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div
+                    className="w-full h-full"
+                    style={{
+                      background: getCoverGradient(null),
+                    }}
+                  />
+                )}
+              </Link>
               <div className="flex-1 min-w-0">
                 <Link to={`/novel/${h.novel?.slug}`}>
                   <h3 className="text-sm font-semibold text-white hover:text-primary-300 line-clamp-1">{h.novel?.title}</h3>
