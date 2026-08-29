@@ -24,6 +24,12 @@ export default function EditNovel() {
   const navigate = useNavigate();
 
   const [title, setTitle] = useState('');
+
+  // Author = nama penulis asli novel.
+  // Berbeda dengan author_id yang tetap merupakan
+  // user yang mengupload/mengelola novel.
+  const [author, setAuthor] = useState('');
+
   const [description, setDescription] = useState('');
   const [releaseYear, setReleaseYear] = useState('');
   const [language, setLanguage] = useState('');
@@ -62,9 +68,9 @@ export default function EditNovel() {
         ] = await Promise.all([
           supabase
             .from('novels')
-          .select(
-            'title, description, status, cover_url, release_year, language, translator'
-          )
+            .select(
+              'title, author, description, status, cover_url, release_year, language, translator'
+            )
             .eq('id', id)
             .eq('author_id', user.id)
             .single(),
@@ -86,6 +92,11 @@ export default function EditNovel() {
         }
 
         setTitle(novelResult.data.title);
+
+        setAuthor(
+          novelResult.data.author || ''
+        );
+
         setReleaseYear(
           novelResult.data.release_year?.toString() || ''
         );
@@ -97,12 +108,15 @@ export default function EditNovel() {
         setTranslator(
           novelResult.data.translator || ''
         );
+
         setDescription(
           novelResult.data.description || ''
         );
+
         setStatus(
           novelResult.data.status as NovelStatus
         );
+
         setCoverUrl(
           novelResult.data.cover_url || ''
         );
@@ -252,11 +266,17 @@ export default function EditNovel() {
     if (!user || !id) return;
 
     const trimmedTitle = title.trim();
+    const trimmedAuthor = author.trim();
     const trimmedDescription =
       description.trim();
 
     if (!trimmedTitle) {
       setError('Judul novel wajib diisi.');
+      return;
+    }
+
+    if (!trimmedAuthor) {
+      setError('Author wajib diisi.');
       return;
     }
 
@@ -296,17 +316,22 @@ export default function EditNovel() {
       const { error: novelError } =
         await supabase
           .from('novels')
-        .update({
-          title: trimmedTitle,
-          description: trimmedDescription,
-          status,
-          cover_url: newCoverUrl || null,
-          release_year: releaseYear
-            ? parseInt(releaseYear, 10)
-            : null,
-          language: language.trim() || null,
-          translator: translator.trim() || null,
-        })
+          .update({
+            title: trimmedTitle,
+
+            // Author = penulis asli novel.
+            // Tidak mengubah author_id.
+            author: trimmedAuthor,
+
+            description: trimmedDescription,
+            status,
+            cover_url: newCoverUrl || null,
+            release_year: releaseYear
+              ? parseInt(releaseYear, 10)
+              : null,
+            language: language.trim() || null,
+            translator: translator.trim() || null,
+          })
           .eq('id', id)
           .eq('author_id', user.id);
 
@@ -498,6 +523,34 @@ export default function EditNovel() {
             disabled={saving}
             required
           />
+        </div>
+
+        {/* AUTHOR */}
+        <div>
+          <label
+            htmlFor="novel-author"
+            className="block text-sm font-medium text-white mb-2"
+          >
+            Author
+          </label>
+
+          <input
+            id="novel-author"
+            type="text"
+            value={author}
+            onChange={(event) =>
+              setAuthor(event.target.value)
+            }
+            className="input w-full"
+            placeholder="Contoh: Mad Snail"
+            maxLength={150}
+            disabled={saving}
+            required
+          />
+
+          <p className="text-xs text-muted mt-1">
+            Masukkan nama penulis asli novel.
+          </p>
         </div>
 
         {/* METADATA NOVEL */}
