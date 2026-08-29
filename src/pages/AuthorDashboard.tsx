@@ -1,591 +1,478 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   BookOpen,
   FileText,
-  Users,
   Eye,
-  MessageSquare,
-  TrendingUp,
+  Bookmark,
+  PenLine,
+  Plus,
+  ChevronRight,
   Loader2,
 } from 'lucide-react';
 
-import {
-  fetchNovels,
-  adminFetchAllProfiles,
-  adminFetchAllComments,
-} from '@/lib/services';
-
+import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 
-interface ActivityData {
-  view_date: string;
-  total_views: number;
-}
-
-interface RecentNovel {
+interface AuthorNovel {
   id: string;
   title: string;
+  slug: string;
+  description: string | null;
+  cover_url: string | null;
+  status: string | null;
+  views: number | null;
+  bookmark_count: number | null;
+  rating: number | null;
   created_at: string;
 }
 
-interface RecentUser {
-  id: string;
-  username: string;
-  created_at: string;
-}
+export default function AuthorDashboard() {
+  const { user, profile, loading } = useAuth();
+  const navigate = useNavigate();
 
-export default function AdminDashboard() {
-  const [stats, setStats] = useState({
-    novels: 0,
-    chapters: 0,
-    users: 0,
-    views: 0,
-    comments: 0,
-  });
-
-  const [activity, setActivity] = useState<ActivityData[]>([]);
-  const [recentNovels, setRecentNovels] = useState<RecentNovel[]>([]);
-  const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
-
-  const [loading, setLoading] = useState(true);
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-
-    try {
-      // ======================================================
-      // 1. AMBIL DATA UTAMA
-      // ======================================================
-
-      const [
-        novelsResult,
-        profiles,
-        comments,
-      ] = await Promise.all([
-        // Jangan pakai limit 1 karena kita membutuhkan
-        // total views seluruh novel.
-        fetchNovels({
-          limit: 10000,
-          offset: 0,
-        }),
-
-        adminFetchAllProfiles(),
-
-        adminFetchAllComments(),
-      ]);
-
-      // ======================================================
-      // 2. TOTAL CHAPTER
-      // ======================================================
-
-      const {
-        count: chapterCount,
-        error: chapterError,
-      } = await supabase
-        .from('chapters')
-        .select('id', {
-          count: 'exact',
-          head: true,
-        });
-
-      if (chapterError) {
-        throw chapterError;
-      }
-
-      // ======================================================
-      // 3. TOTAL VIEWS SEMUA NOVEL
-      // ======================================================
-
-      const totalViews = novelsResult.data.reduce(
-        (sum, novel) => {
-          return sum + Number(novel.views || 0);
-        },
-        0
-      );
-
-      // ======================================================
-      // 4. STATISTIK UTAMA
-      // ======================================================
-
-      setStats({
-        novels: novelsResult.total,
-        chapters: chapterCount || 0,
-        users: profiles.length,
-        views: totalViews,
-        comments: comments.length,
-      });
-
-      // ======================================================
-      // 5. AKTIVITAS MEMBACA 7 HARI TERAKHIR
-      // ======================================================
-
-      const {
-        data: activityData,
-        error: activityError,
-      } = await supabase
-        .from('chapter_view_logs')
-        .select('viewed_at');
-
-      if (activityError) {
-        throw activityError;
-      }
-
-      // Buat 7 tanggal terakhir.
-      const last7Days: ActivityData[] = [];
-
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-
-        date.setDate(
-          date.getDate() - i
-        );
-
-        const year = date.getFullYear();
-
-        const month = String(
-          date.getMonth() + 1
-        ).padStart(2, '0');
-
-        const day = String(
-          date.getDate()
-        ).padStart(2, '0');
-
-        const dateString =
-          `${year}-${month}-${day}`;
-
-        last7Days.push({
-          view_date: dateString,
-          total_views: 0,
-        });
-      }
-
-      // Hitung jumlah view berdasarkan tanggal.
-      (activityData || []).forEach(
-        (row) => {
-          if (!row.viewed_at) {
-            return;
-          }
-
-          const date = new Date(
-            row.viewed_at
-          );
-
-          const year =
-            date.getFullYear();
-
-          const month = String(
-            date.getMonth() + 1
-          ).padStart(2, '0');
-
-          const day = String(
-            date.getDate()
-          ).padStart(2, '0');
-
-          const dateString =
-            `${year}-${month}-${day}`;
-
-          const target =
-            last7Days.find(
-              (item) =>
-                item.view_date ===
-                dateString
-            );
-
-          if (target) {
-            target.total_views += 1;
-          }
-        }
-      );
-
-      setActivity(last7Days);
-
-      // ======================================================
-      // 6. NOVEL TERBARU
-      // ======================================================
-
-      const {
-        data: latestNovels,
-        error: latestNovelsError,
-      } = await supabase
-        .from('novels')
-        .select(
-          'id, title, created_at'
-        )
-        .order(
-          'created_at',
-          {
-            ascending: false,
-          }
-        )
-        .limit(5);
-
-      if (latestNovelsError) {
-        throw latestNovelsError;
-      }
-
-      setRecentNovels(
-        (latestNovels ||
-          []) as RecentNovel[]
-      );
-
-      // ======================================================
-      // 7. USER TERBARU
-      // ======================================================
-
-      const latestUsers =
-        [...profiles]
-          .sort(
-            (a, b) =>
-              new Date(
-                b.created_at
-              ).getTime() -
-              new Date(
-                a.created_at
-              ).getTime()
-          )
-          .slice(0, 5)
-          .map((profile) => ({
-            id: profile.id,
-            username:
-              profile.username ||
-              'User',
-            created_at:
-              profile.created_at,
-          }));
-
-      setRecentUsers(
-        latestUsers
-      );
-    } catch (error) {
-      console.error(
-        'Failed to load dashboard data:',
-        error
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [novels, setNovels] = useState<AuthorNovel[]>([]);
+  const [totalChapters, setTotalChapters] = useState(0);
+  const [loadingNovels, setLoadingNovels] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!loading && !user) {
+      navigate('/login');
+    }
+  }, [user, loading, navigate]);
 
-  // ==========================================================
-  // STAT CARD
-  // ==========================================================
+  useEffect(() => {
+    if (!user || loading) return;
 
-  const cards = [
-    {
-      label: 'Total Novel',
-      value: stats.novels,
-      icon: BookOpen,
-      color:
-        'from-primary to-secondary',
-    },
-    {
-      label: 'Total Bab',
-      value: stats.chapters,
-      icon: FileText,
-      color:
-        'from-blue-500 to-cyan-500',
-    },
-    {
-      label: 'Total User',
-      value: stats.users,
-      icon: Users,
-      color:
-        'from-green-500 to-emerald-500',
-    },
-    {
-      label: 'Total Views',
-      value: stats.views,
-      icon: Eye,
-      color:
-        'from-orange-500 to-red-500',
-    },
-    {
-      label: 'Total Komentar',
-      value: stats.comments,
-      icon: MessageSquare,
-      color:
-        'from-pink-500 to-purple-500',
-    },
-  ];
+    const loadAuthorData = async () => {
+      setLoadingNovels(true);
+      setError('');
 
-  // ==========================================================
-  // LABEL HARI
-  // ==========================================================
+      try {
+        /*
+         * =========================
+         * LOAD NOVELS
+         * =========================
+         */
+        const { data: novelData, error: novelError } =
+          await supabase
+            .from('novels')
+            .select(
+              `
+                id,
+                title,
+                slug,
+                description,
+                cover_url,
+                status,
+                views,
+                bookmark_count,
+                rating,
+                created_at
+              `
+            )
+            .eq('author_id', user.id)
+            .order('created_at', { ascending: false });
 
-  const getDayLabel = (
-    dateString: string
-  ) => {
-    const date = new Date(
-      `${dateString}T00:00:00`
-    );
+        if (novelError) {
+          throw novelError;
+        }
 
-    return date.toLocaleDateString(
-      'id-ID',
-      {
-        weekday: 'short',
+        const authorNovels = novelData ?? [];
+
+        setNovels(authorNovels);
+
+        /*
+         * =========================
+         * TOTAL BAB
+         * =========================
+         *
+         * Ambil ID semua novel milik penulis,
+         * kemudian hitung semua bab yang
+         * memiliki novel_id tersebut.
+         */
+        if (authorNovels.length === 0) {
+          setTotalChapters(0);
+        } else {
+          const novelIds = authorNovels.map(
+            (novel) => novel.id
+          );
+
+          const { count: chapterCount, error: chapterError } =
+            await supabase
+              .from('chapters')
+              .select('id', {
+                count: 'exact',
+                head: true,
+              })
+              .in('novel_id', novelIds);
+
+          if (chapterError) {
+            throw chapterError;
+          }
+
+          setTotalChapters(chapterCount ?? 0);
+        }
+      } catch (err) {
+        console.error(
+          'Failed to load author dashboard:',
+          err
+        );
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Gagal memuat data dashboard.'
+        );
+      } finally {
+        setLoadingNovels(false);
       }
-    );
-  };
+    };
 
-  // Nilai maksimum grafik.
-  const maxViews = Math.max(
-    ...activity.map(
-      (item) => item.total_views
-    ),
-    1
+    void loadAuthorData();
+  }, [user, loading]);
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8">
+        <div className="skeleton h-10 w-64 rounded-xl mb-6" />
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={index}
+              className="skeleton h-28 rounded-2xl"
+            />
+          ))}
+        </div>
+
+        <div className="skeleton h-64 rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  /*
+   * =========================
+   * STATISTIK DASHBOARD
+   * =========================
+   */
+
+  const totalNovels = novels.length;
+
+  const totalViews = novels.reduce(
+    (total, novel) =>
+      total + (novel.views ?? 0),
+    0
   );
 
-  // ==========================================================
-  // FORMAT TANGGAL
-  // ==========================================================
-
-  const formatDate = (
-    dateString: string
-  ) => {
-    if (!dateString) {
-      return '-';
-    }
-
-    return new Date(
-      dateString
-    ).toLocaleDateString(
-      'id-ID',
-      {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }
-    );
-  };
+  const totalBookmarks = novels.reduce(
+    (total, novel) =>
+      total + (novel.bookmark_count ?? 0),
+    0
+  );
 
   return (
-    <div>
-      {/* ====================================================
-          HEADER
-      ==================================================== */}
+    <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8">
 
-      <div className="flex items-center justify-between mb-6">
+      {/* =========================
+          HEADER
+      ========================== */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">
-            Dashboard
+          <div className="flex items-center gap-2 mb-2">
+            <div className="h-9 w-9 rounded-xl bg-primary/20 flex items-center justify-center">
+              <PenLine className="h-5 w-5 text-primary-400" />
+            </div>
+
+            <span className="text-sm text-primary-300 font-medium">
+              Area Penulis
+            </span>
+          </div>
+
+          <h1 className="text-2xl md:text-3xl font-bold text-white">
+            Dashboard Penulis
           </h1>
 
           <p className="text-sm text-muted mt-1">
-            Ringkasan aktivitas website
+            Kelola novel dan karya tulisanmu di Semesta Novel.
           </p>
         </div>
 
-        {loading && (
-          <Loader2 className="h-5 w-5 text-primary animate-spin" />
-        )}
+        <Link
+          to="/profile"
+          className="btn-ghost self-start sm:self-auto"
+        >
+          Kembali ke Profil
+        </Link>
       </div>
 
-      {/* ====================================================
-          STAT CARDS
-      ==================================================== */}
+      {/* =========================
+          STATISTICS
+      ========================== */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-        {cards.map((card) => {
-          const Icon = card.icon;
-
-          return (
-            <div
-              key={card.label}
-              className="card p-5"
-            >
-              <div
-                className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${card.color} mb-3`}
-              >
-                <Icon className="h-5 w-5 text-white" />
-              </div>
-
-              <p className="text-2xl font-bold text-white">
-                {loading
-                  ? '...'
-                  : card.value.toLocaleString(
-                      'id-ID'
-                    )}
+        {/* Total Novel */}
+        <div className="card p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted">
+                Total Novel
               </p>
 
-              <p className="text-xs text-muted mt-1">
-                {card.label}
+              <p className="text-2xl font-bold text-white mt-1">
+                {totalNovels.toLocaleString('id-ID')}
               </p>
             </div>
-          );
-        })}
+
+            <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center">
+              <BookOpen className="h-5 w-5 text-primary-400" />
+            </div>
+          </div>
+        </div>
+
+        {/* Total Bab */}
+        <div className="card p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted">
+                Total Bab
+              </p>
+
+              <p className="text-2xl font-bold text-white mt-1">
+                {totalChapters.toLocaleString('id-ID')}
+              </p>
+            </div>
+
+            <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center">
+              <FileText className="h-5 w-5 text-primary-400" />
+            </div>
+          </div>
+        </div>
+
+        {/* Total Dibaca */}
+        <div className="card p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted">
+                Total Dibaca
+              </p>
+
+              <p className="text-2xl font-bold text-white mt-1">
+                {totalViews.toLocaleString('id-ID')}
+              </p>
+            </div>
+
+            <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center">
+              <Eye className="h-5 w-5 text-primary-400" />
+            </div>
+          </div>
+        </div>
+
+        {/* Total Bookmark */}
+        <div className="card p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted">
+                Total Bookmark
+              </p>
+
+              <p className="text-2xl font-bold text-white mt-1">
+                {totalBookmarks.toLocaleString('id-ID')}
+              </p>
+            </div>
+
+            <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center">
+              <Bookmark className="h-5 w-5 text-primary-400" />
+            </div>
+          </div>
+        </div>
+
       </div>
 
-      {/* ====================================================
-          ACTIVITY CHART
-      ==================================================== */}
+      {/* =========================
+          MANAGEMENT
+      ========================== */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
 
-      <div className="card p-6 mb-6">
-        <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-primary-400" />
+        <Link
+          to="/author/novels"
+          className="card p-5 hover:bg-white/[0.03] transition-colors group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <BookOpen className="h-5 w-5 text-primary-400" />
+            </div>
 
-          Aktivitas Membaca (7 Hari Terakhir)
-        </h2>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-white group-hover:text-primary-300">
+                Kelola Novel
+              </h3>
 
-        {loading ? (
-          <div className="h-40 flex items-center justify-center">
-            <Loader2 className="h-6 w-6 text-primary animate-spin" />
+              <p className="text-xs text-muted mt-1">
+                Edit dan kelola novel yang kamu tulis.
+              </p>
+            </div>
+
+            <ChevronRight className="h-5 w-5 text-muted group-hover:text-primary-300" />
           </div>
-        ) : (
-          <div className="flex items-end justify-between gap-2 h-48">
-            {activity.map(
-              (item) => {
-                const height =
-                  item.total_views ===
-                  0
-                    ? 4
-                    : Math.max(
-                        8,
-                        (item.total_views /
-                          maxViews) *
-                          100
-                      );
+        </Link>
 
-                return (
-                  <div
-                    key={
-                      item.view_date
-                    }
-                    className="flex-1 flex flex-col items-center gap-2 h-full justify-end"
-                  >
-                    {/* Jumlah view */}
+      </div>
 
-                    <span className="text-xs text-muted">
-                      {item.total_views.toLocaleString(
-                        'id-ID'
-                      )}
-                    </span>
+      {/* =========================
+          NOVEL SECTION
+      ========================== */}
+      <div className="card overflow-hidden">
 
-                    {/* Bar */}
+        <div className="p-4 md:p-5 border-b border-white/5 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-white">
+              Novel Saya
+            </h2>
 
-                    <div
-                      className="w-full max-w-[60px] bg-gradient-to-t from-primary/40 to-primary rounded-t-lg transition-all hover:from-primary/60 hover:to-secondary"
-                      style={{
-                        height: `${height}%`,
-                      }}
-                      title={`${item.total_views} view`}
-                    />
+            <p className="text-xs text-muted mt-1">
+              Daftar novel yang kamu tulis.
+            </p>
+          </div>
 
-                    {/* Hari */}
+          <Link
+            to="/author/create"
+            className="btn-primary text-sm"
+          >
+            <Plus className="h-4 w-4" />
+            Buat Novel
+          </Link>
+        </div>
 
-                    <span className="text-xs text-muted">
-                      {getDayLabel(
-                        item.view_date
-                      )}
-                    </span>
-                  </div>
-                );
-              }
-            )}
+        {/* Error */}
+        {error && (
+          <div className="p-5">
+            <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4">
+              <p className="text-sm text-red-400">
+                {error}
+              </p>
+            </div>
           </div>
         )}
+
+        {/* Loading */}
+        {loadingNovels && !error && (
+          <div className="p-6 flex items-center justify-center">
+            <Loader2 className="h-6 w-6 text-primary-400 animate-spin" />
+          </div>
+        )}
+
+        {/* Empty */}
+        {!loadingNovels &&
+          !error &&
+          novels.length === 0 && (
+            <div className="p-8 text-center">
+              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <BookOpen className="h-7 w-7 text-primary-400" />
+              </div>
+
+              <h3 className="text-base font-semibold text-white">
+                Belum ada novel
+              </h3>
+
+              <p className="text-sm text-muted mt-1 max-w-sm mx-auto">
+                Kamu belum memiliki novel. Mulai tulis novel pertamamu
+                sekarang.
+              </p>
+
+              <Link
+                to="/author/create"
+                className="btn-primary mt-5"
+              >
+                <PenLine className="h-4 w-4" />
+                Tulis Novel
+              </Link>
+            </div>
+          )}
+
+        {/* Novel List */}
+        {!loadingNovels &&
+          !error &&
+          novels.length > 0 && (
+            <div className="divide-y divide-white/5">
+              {novels.map((novel) => (
+                <div
+                  key={novel.id}
+                  className="p-4 md:p-5 flex items-center gap-4 hover:bg-white/[0.03] transition-colors"
+                >
+                  <div className="h-14 w-14 md:h-16 md:w-16 rounded-xl overflow-hidden bg-gradient-to-br from-primary/30 to-secondary/20 flex-shrink-0">
+                    {novel.cover_url ? (
+                      <img
+                        src={novel.cover_url}
+                        alt={`Cover ${novel.title}`}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <BookOpen className="h-6 w-6 text-primary-300" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm md:text-base font-semibold text-white truncate">
+                      {novel.title}
+                    </h3>
+
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                      <span className="text-xs text-muted">
+                        {(novel.views ?? 0).toLocaleString('id-ID')} dibaca
+                      </span>
+
+                      <span className="text-xs text-muted">
+                        {(novel.bookmark_count ?? 0).toLocaleString('id-ID')} bookmark
+                      </span>
+
+                      {novel.status && (
+                        <span className="badge bg-primary/10 text-primary-300 capitalize">
+                          {novel.status}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <Link
+                    to={`/novel/${novel.slug}`}
+                    className="btn-ghost p-2 flex-shrink-0"
+                    title="Lihat novel"
+                    aria-label={`Lihat novel ${novel.title}`}
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
+
       </div>
 
-      {/* ====================================================
-          RECENT DATA
-      ==================================================== */}
+      {/* =========================
+          ROLE INFO
+      ========================== */}
+      {profile?.role === 'author' && (
+        <div className="mt-6 rounded-2xl bg-primary/10 border border-primary/20 p-4">
+          <p className="text-sm font-medium text-primary-300">
+            Mode Penulis Aktif
+          </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* ==================================================
-            NOVEL TERBARU
-        ================================================== */}
-
-        <div className="card p-6">
-          <h2 className="text-base font-semibold text-white mb-4">
-            Novel Terbaru
-          </h2>
-
-          <div className="space-y-3">
-            {loading ? (
-              <p className="text-sm text-muted">
-                Memuat...
-              </p>
-            ) : recentNovels.length ===
-              0 ? (
-              <p className="text-sm text-muted">
-                Belum ada novel.
-              </p>
-            ) : (
-              recentNovels.map(
-                (novel) => (
-                  <div
-                    key={novel.id}
-                    className="flex items-center justify-between gap-3 rounded-lg bg-white/5 px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-white truncate">
-                        {novel.title}
-                      </p>
-
-                      <p className="text-xs text-muted mt-1">
-                        {formatDate(
-                          novel.created_at
-                        )}
-                      </p>
-                    </div>
-
-                    <BookOpen className="h-4 w-4 text-primary shrink-0" />
-                  </div>
-                )
-              )
-            )}
-          </div>
+          <p className="text-xs text-muted mt-1">
+            Akunmu sudah terdaftar sebagai penulis. Nantinya seluruh
+            pengelolaan karya akan dilakukan melalui Dashboard Penulis.
+          </p>
         </div>
+      )}
 
-        {/* ==================================================
-            USER TERBARU
-        ================================================== */}
-
-        <div className="card p-6">
-          <h2 className="text-base font-semibold text-white mb-4">
-            User Baru
-          </h2>
-
-          <div className="space-y-3">
-            {loading ? (
-              <p className="text-sm text-muted">
-                Memuat...
-              </p>
-            ) : recentUsers.length ===
-              0 ? (
-              <p className="text-sm text-muted">
-                Belum ada user.
-              </p>
-            ) : (
-              recentUsers.map(
-                (user) => (
-                  <div
-                    key={user.id}
-                    className="flex items-center justify-between gap-3 rounded-lg bg-white/5 px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-white truncate">
-                        {user.username}
-                      </p>
-
-                      <p className="text-xs text-muted mt-1">
-                        {formatDate(
-                          user.created_at
-                        )}
-                      </p>
-                    </div>
-
-                    <Users className="h-4 w-4 text-green-400 shrink-0" />
-                  </div>
-                )
-              )
-            )}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
