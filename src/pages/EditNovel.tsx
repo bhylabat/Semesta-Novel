@@ -25,6 +25,9 @@ export default function EditNovel() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [releaseYear, setReleaseYear] = useState('');
+  const [language, setLanguage] = useState('');
+  const [translator, setTranslator] = useState('');
   const [status, setStatus] =
     useState<NovelStatus>('ongoing');
 
@@ -59,9 +62,9 @@ export default function EditNovel() {
         ] = await Promise.all([
           supabase
             .from('novels')
-            .select(
-              'title, description, status, cover_url'
-            )
+          .select(
+            'title, description, status, cover_url, release_year, language, translator'
+          )
             .eq('id', id)
             .eq('author_id', user.id)
             .single(),
@@ -83,6 +86,17 @@ export default function EditNovel() {
         }
 
         setTitle(novelResult.data.title);
+        setReleaseYear(
+          novelResult.data.release_year?.toString() || ''
+        );
+
+        setLanguage(
+          novelResult.data.language || ''
+        );
+
+        setTranslator(
+          novelResult.data.translator || ''
+        );
         setDescription(
           novelResult.data.description || ''
         );
@@ -282,12 +296,17 @@ export default function EditNovel() {
       const { error: novelError } =
         await supabase
           .from('novels')
-          .update({
-            title: trimmedTitle,
-            description: trimmedDescription,
-            status,
-            cover_url: newCoverUrl || null,
-          })
+        .update({
+          title: trimmedTitle,
+          description: trimmedDescription,
+          status,
+          cover_url: newCoverUrl || null,
+          release_year: releaseYear
+            ? parseInt(releaseYear, 10)
+            : null,
+          language: language.trim() || null,
+          translator: translator.trim() || null,
+        })
           .eq('id', id)
           .eq('author_id', user.id);
 
@@ -478,6 +497,78 @@ export default function EditNovel() {
             maxLength={150}
             disabled={saving}
             required
+          />
+        </div>
+
+        {/* METADATA NOVEL */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+          <div>
+            <label
+              htmlFor="novel-release-year"
+              className="block text-sm font-medium text-white mb-2"
+            >
+              Tahun Rilis
+            </label>
+
+            <input
+              id="novel-release-year"
+              type="number"
+              value={releaseYear}
+              onChange={(event) =>
+                setReleaseYear(event.target.value)
+              }
+              className="input w-full"
+              placeholder="Contoh: 2014"
+              min="1900"
+              max="2100"
+              disabled={saving}
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="novel-language"
+              className="block text-sm font-medium text-white mb-2"
+            >
+              Bahasa
+            </label>
+
+            <input
+              id="novel-language"
+              type="text"
+              value={language}
+              onChange={(event) =>
+                setLanguage(event.target.value)
+              }
+              className="input w-full"
+              placeholder="Contoh: Mandarin"
+              maxLength={50}
+              disabled={saving}
+            />
+          </div>
+
+        </div>
+
+        <div>
+          <label
+            htmlFor="novel-translator"
+            className="block text-sm font-medium text-white mb-2"
+          >
+            Terjemahan
+          </label>
+
+          <input
+            id="novel-translator"
+            type="text"
+            value={translator}
+            onChange={(event) =>
+              setTranslator(event.target.value)
+            }
+            className="input w-full"
+            placeholder="Contoh: Bhylabatt"
+            maxLength={100}
+            disabled={saving}
           />
         </div>
 
