@@ -27,6 +27,9 @@ export interface Novel {
   title: string;
   slug: string;
   author: string;
+  release_year: number | null;
+  language: string | null;
+  translator: string | null;
   description: string;
   cover_url: string | null;
   banner_url: string | null;

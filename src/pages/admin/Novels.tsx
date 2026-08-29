@@ -14,8 +14,18 @@ export default function AdminNovels() {
   const [editing, setEditing] = useState<Novel | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [form, setForm] = useState({
-    title: '', slug: '', author: '', description: '', cover_url: '', banner_url: '',
-    status: 'ongoing' as NovelStatus, rating: 0, genreIds: [] as string[],
+    title: '',
+    slug: '',
+    author: '',
+    release_year: '',
+    language: '',
+    translator: '',
+    description: '',
+    cover_url: '',
+    banner_url: '',
+    status: 'ongoing' as NovelStatus,
+    rating: 0,
+    genreIds: [] as string[],
   });
   const [saving, setSaving] = useState(false);
 
@@ -38,16 +48,38 @@ export default function AdminNovels() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ title: '', slug: '', author: '', description: '', cover_url: '', banner_url: '', status: 'ongoing', rating: 0, genreIds: [] });
+    setForm({
+      title: '',
+      slug: '',
+      author: '',
+      release_year: '',
+      language: '',
+      translator: '',
+      description: '',
+      cover_url: '',
+      banner_url: '',
+      status: 'ongoing',
+      rating: 0,
+      genreIds: [],
+    });
     setShowForm(true);
   };
 
   const openEdit = (novel: Novel) => {
     setEditing(novel);
     setForm({
-      title: novel.title, slug: novel.slug, author: novel.author, description: novel.description,
-      cover_url: novel.cover_url || '', banner_url: novel.banner_url || '', status: novel.status,
-      rating: novel.rating, genreIds: novel.genres?.map((g) => g.id) || [],
+      title: novel.title,
+      slug: novel.slug,
+      author: novel.author,
+      release_year: novel.release_year?.toString() || '',
+      language: novel.language || '',
+      translator: novel.translator || '',
+      description: novel.description,
+      cover_url: novel.cover_url || '',
+      banner_url: novel.banner_url || '',
+      status: novel.status,
+      rating: novel.rating,
+      genreIds: novel.genres?.map((g) => g.id) || [],
     });
     setShowForm(true);
   };
@@ -58,9 +90,17 @@ export default function AdminNovels() {
     try {
       const slug = form.slug || slugify(form.title);
       const novelData = {
-        title: form.title, slug, author: form.author, description: form.description,
-        cover_url: form.cover_url || null, banner_url: form.banner_url || null,
-        status: form.status, rating: form.rating,
+        title: form.title,
+        slug,
+        author: form.author,
+        release_year: form.release_year ? parseInt(form.release_year, 10) : null,
+        language: form.language,
+        translator: form.translator,
+        description: form.description,
+        cover_url: form.cover_url || null,
+        banner_url: form.banner_url || null,
+        status: form.status,
+        rating: form.rating,
       };
       if (editing) {
         await adminUpdateNovel(editing.id, novelData);
@@ -148,6 +188,40 @@ export default function AdminNovels() {
               <div>
                 <label className="text-sm text-white mb-1 block">Penulis</label>
                 <input type="text" value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} className="input w-full" required />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm text-white mb-1 block">Tahun Rilis</label>
+                  <input
+                    type="number"
+                    value={form.release_year}
+                    onChange={(e) => setForm({ ...form, release_year: e.target.value })}
+                    className="input w-full"
+                    placeholder="Contoh: 2014"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm text-white mb-1 block">Bahasa</label>
+                  <input
+                    type="text"
+                    value={form.language}
+                    onChange={(e) => setForm({ ...form, language: e.target.value })}
+                    className="input w-full"
+                    placeholder="Contoh: Mandarin"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm text-white mb-1 block">Terjemahan</label>
+                <input
+                  type="text"
+                  value={form.translator}
+                  onChange={(e) => setForm({ ...form, translator: e.target.value })}
+                  className="input w-full"
+                  placeholder="Contoh: Bhylabatt"
+                />
               </div>
               <div>
                 <label className="text-sm text-white mb-1 block">Deskripsi</label>
