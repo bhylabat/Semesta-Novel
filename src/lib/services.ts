@@ -862,6 +862,56 @@ export async function recordChapterView(
 }
 
 // ============================================================
+// CHAPTER VIEW STATISTICS
+// ============================================================
+
+export interface DailyViewStat {
+  view_date: string;
+  total_views: number;
+}
+
+/**
+ * Mengambil jumlah view per hari.
+ *
+ * Dipakai oleh AdminDashboard untuk grafik
+ * "Aktivitas Membaca (7 Hari Terakhir)".
+ */
+export async function fetchDailyViewStats(
+  days = 7
+): Promise<DailyViewStat[]> {
+  if (!isSupabaseConfigured) {
+    return [];
+  }
+
+  const safeDays = Math.max(
+    1,
+    Math.min(31, Math.floor(days))
+  );
+
+  const { data, error } = await supabase.rpc(
+    'get_daily_chapter_views',
+    {
+      days_count: safeDays,
+    }
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  return (data || []).map(
+    (row: {
+      view_date: string;
+      total_views: number;
+    }) => ({
+      view_date: row.view_date,
+      total_views: Number(
+        row.total_views || 0
+      ),
+    })
+  );
+}
+// ============================================================
 // GENRES
 // ============================================================
 

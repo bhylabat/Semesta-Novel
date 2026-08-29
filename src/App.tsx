@@ -23,7 +23,6 @@ import Notifications from '@/pages/Notifications';
 
 import AdminDashboard from '@/pages/admin/Dashboard';
 import AdminNovels from '@/pages/admin/Novels';
-import AdminChapters from '@/pages/admin/Chapters';
 import AdminUsers from '@/pages/admin/Users';
 import AdminComments from '@/pages/admin/Comments';
 import AdminGenres from '@/pages/admin/Genres';
@@ -99,7 +98,6 @@ function App() {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="novels" element={<AdminNovels />} />
-            <Route path="chapters" element={<AdminChapters />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="comments" element={<AdminComments />} />
             <Route path="genres" element={<AdminGenres />} />
