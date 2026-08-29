@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   BookOpen,
+  FileText,
   Users,
   Eye,
   MessageSquare,
@@ -16,6 +17,7 @@ import { supabase } from '@/lib/supabase';
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
     novels: 0,
+    chapters: 0,
     users: 0,
     views: 0,
     comments: 0,
@@ -27,21 +29,39 @@ export default function AdminDashboard() {
     setLoading(true);
 
     try {
-      const [novelsData, profiles, comments] =
-        await Promise.all([
-          fetchNovels({ limit: 1000 }),
-          adminFetchAllProfiles(),
-          adminFetchAllComments(),
-        ]);
+      const [
+        novelsData,
+        profiles,
+        comments,
+        chapterResult,
+      ] = await Promise.all([
+        fetchNovels({ limit: 1000 }),
+        adminFetchAllProfiles(),
+        adminFetchAllComments(),
+
+        // Ambil total bab
+        supabase
+          .from('chapters')
+          .select('id', {
+            count: 'exact',
+            head: true,
+          }),
+      ]);
+
+      if (chapterResult.error) {
+        throw chapterResult.error;
+      }
 
       // Ambil total views dari semua novel
       const totalViews = novelsData.data.reduce(
-        (sum, novel) => sum + Number(novel.views || 0),
+        (sum, novel) =>
+          sum + Number(novel.views || 0),
         0
       );
 
       setStats({
         novels: novelsData.total,
+        chapters: chapterResult.count || 0,
         users: profiles.length,
         views: totalViews,
         comments: comments.length,
@@ -66,6 +86,12 @@ export default function AdminDashboard() {
       value: stats.novels,
       icon: BookOpen,
       color: 'from-primary to-secondary',
+    },
+    {
+      label: 'Total Bab',
+      value: stats.chapters,
+      icon: FileText,
+      color: 'from-blue-500 to-cyan-500',
     },
     {
       label: 'Total User',
@@ -94,7 +120,7 @@ export default function AdminDashboard() {
       </h1>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
         {cards.map((card) => {
           const Icon = card.icon;
 
