@@ -246,7 +246,7 @@ export default function Home() {
               Lihat Semua <ChevronRight className="h-4 w-4" />
             </Link>
           }>
-                <div className="grid grid-cols-2 gap-2 max-w-lg mx-auto">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-10 gap-3">
               {loading
                 ? Array.from({ length: 10 }).map((_, i) => <NovelCardSkeleton key={i} />)
                 : topNovels.map((novel, i) => (
@@ -261,7 +261,7 @@ export default function Home() {
               Lihat Semua <ChevronRight className="h-4 w-4" />
             </Link>
           }>
-              <div className="grid grid-cols-2 gap-2 max-w-lg mx-auto">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
               {loading
                 ? Array.from({ length: 12 }).map((_, i) => <NovelCardSkeleton key={i} />)
                 : latestNovels.map((novel) => (
