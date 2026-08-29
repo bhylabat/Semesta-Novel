@@ -43,14 +43,15 @@ export default function EditNovel() {
   // akun user yang mengupload/mengelola novel.
   const [author, setAuthor] = useState('');
 
-  // Daftar user yang dapat dipilih sebagai penerjemah.
+  // Daftar user penerjemah.
+  // Hanya user yang sedang login yang dimuat.
   const [users, setUsers] = useState<ProfileUser[]>([]);
 
   const [description, setDescription] = useState('');
   const [releaseYear, setReleaseYear] = useState('');
   const [language, setLanguage] = useState('');
 
-  // Menyimpan ID user penerjemah, bukan username/display_name.
+  // Menyimpan ID user penerjemah.
   const [translator, setTranslator] = useState('');
 
   const [status, setStatus] =
@@ -79,7 +80,8 @@ export default function EditNovel() {
   const [error, setError] = useState('');
 
   /*
-   * Memuat data novel, genre, dan user penerjemah.
+   * Memuat data novel, genre,
+   * dan user penerjemah.
    */
   useEffect(() => {
     if (!user || loading || !id) return;
@@ -123,16 +125,17 @@ export default function EditNovel() {
             .eq('novel_id', id),
 
           /*
-           * SEMUA USER UNTUK PILIHAN PENERJEMAH
+           * USER PENERJEMAH
+           *
+           * HANYA mengambil profile user
+           * yang sedang login.
            */
           supabase
             .from('profiles')
             .select(
               'id, username, display_name'
             )
-            .order('username', {
-              ascending: true,
-            }),
+            .eq('id', user.id),
         ]);
 
         /*
@@ -183,7 +186,7 @@ export default function EditNovel() {
         );
 
         /*
-         * Translator sekarang berisi ID user.
+         * Translator menyimpan ID user.
          */
         setTranslator(
           novelResult.data.translator || ''
@@ -212,7 +215,7 @@ export default function EditNovel() {
         );
 
         /*
-         * SIMPAN DAFTAR USER
+         * SIMPAN USER LOGIN SAJA
          */
         setUsers(
           (usersResult.data || []) as ProfileUser[]
@@ -543,7 +546,7 @@ export default function EditNovel() {
             language.trim() || null,
 
           /*
-           * Translator sekarang menyimpan
+           * Translator menyimpan
            * ID user penerjemah.
            */
           translator:

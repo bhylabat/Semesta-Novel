@@ -49,7 +49,7 @@ export default function CreateNovel() {
   const [releaseYear, setReleaseYear] = useState('');
   const [language, setLanguage] = useState('');
 
-  // Menyimpan ID user penerjemah, bukan nama user.
+  // Menyimpan ID user penerjemah.
   const [translator, setTranslator] = useState('');
 
   const [description, setDescription] = useState('');
@@ -60,8 +60,9 @@ export default function CreateNovel() {
   const [selectedGenres, setSelectedGenres] =
     useState<string[]>([]);
 
-  const [users, setUsers] =
-    useState<ProfileUser[]>([]);
+  // Hanya berisi user yang sedang login.
+  const [translatorUser, setTranslatorUser] =
+    useState<ProfileUser | null>(null);
 
   const [coverFile, setCoverFile] =
     useState<File | null>(null);
@@ -83,10 +84,16 @@ export default function CreateNovel() {
     }
   }, [user, loading, navigate]);
 
+  /*
+   * MEMUAT USER PENERJEMAH
+   *
+   * Hanya mengambil profile user yang sedang login.
+   * Tidak mengambil semua user dari tabel profiles.
+   */
   useEffect(() => {
     if (!user || loading) return;
 
-    const loadUsers = async () => {
+    const loadTranslatorUser = async () => {
       try {
         setLoadingUsers(true);
 
@@ -98,28 +105,39 @@ export default function CreateNovel() {
           .select(
             'id, username, display_name'
           )
-          .order('username', {
-            ascending: true,
-          });
+          .eq('id', user.id)
+          .maybeSingle();
 
         if (usersError) {
           throw usersError;
         }
 
-        setUsers(data || []);
+        setTranslatorUser(
+          data as ProfileUser | null
+        );
+
+        // ID user login menjadi nilai translator.
+        if (data) {
+          setTranslator(data.id);
+        } else {
+          setTranslator(user.id);
+        }
       } catch (err) {
         console.error(
-          'Failed to load users:',
+          'Failed to load translator user:',
           err
         );
 
-        setUsers([]);
+        setTranslatorUser(null);
+
+        // Tetap gunakan ID user yang sedang login.
+        setTranslator(user.id);
       } finally {
         setLoadingUsers(false);
       }
     };
 
-    void loadUsers();
+    void loadTranslatorUser();
   }, [user, loading]);
 
   useEffect(() => {
@@ -409,9 +427,9 @@ export default function CreateNovel() {
           language:
             language.trim() || null,
 
-          // Simpan ID user penerjemah.
+          // Simpan ID user yang sedang login.
           translator:
-            translator || null,
+            translator || user.id,
 
           slug,
 
@@ -729,24 +747,18 @@ export default function CreateNovel() {
                 Tidak ada
               </option>
 
-              {users.map((item) => {
-                const name =
-                  item.display_name ||
-                  item.username;
-
-                return (
-                  <option
-                    key={item.id}
-                    value={item.id}
-                  >
-                    {name}
-                  </option>
-                );
-              })}
+              {translatorUser && (
+                <option
+                  value={translatorUser.id}
+                >
+                  {translatorUser.display_name ||
+                    translatorUser.username}
+                </option>
+              )}
             </select>
 
             <p className="text-xs text-muted mt-1">
-              Pilih user yang menerjemahkan novel ini.
+              Hanya akun yang sedang login yang dapat dipilih sebagai penerjemah.
             </p>
           </div>
 
