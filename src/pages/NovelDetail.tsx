@@ -370,8 +370,8 @@ export default function NovelDetail() {
               <span className="min-w-0 truncate">
                 👤{' '}
                 <strong className="text-white/90">
-                  Author
-                </strong>{' '}
+                  Penulis
+                </strong>
                 {novel.author || '-'}
               </span>
 
