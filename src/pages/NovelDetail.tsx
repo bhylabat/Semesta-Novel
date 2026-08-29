@@ -365,31 +365,27 @@ export default function NovelDetail() {
             {novel.title}
           </h1>
 
-          <div className="text-sm text-muted mb-5 space-y-2">
-
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-
-              <span>
+          <div className="text-xs text-muted mb-5 space-y-1.5">
+            <div className="grid grid-cols-2 gap-x-4">
+              <span className="min-w-0 truncate">
                 👤{' '}
                 <strong className="text-white/90">
                   Author
                 </strong>{' '}
-                {novel.author}
+                {novel.author || '-'}
               </span>
 
-              <span>
+              <span className="min-w-0 truncate">
                 📅{' '}
                 <strong className="text-white/90">
                   Tahun Rilis
                 </strong>{' '}
                 {novel.release_year || '-'}
               </span>
-
             </div>
 
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-
-              <span>
+            <div className="grid grid-cols-2 gap-x-4">
+              <span className="min-w-0 truncate">
                 🌐{' '}
                 <strong className="text-white/90">
                   Bahasa
@@ -397,16 +393,14 @@ export default function NovelDetail() {
                 {novel.language || '-'}
               </span>
 
-              <span>
+              <span className="min-w-0 truncate">
                 🔤{' '}
                 <strong className="text-white/90">
                   Terjemahan
                 </strong>{' '}
                 {translatorName || '-'}
               </span>
-
             </div>
-
           </div>
 
           {/* Stats */}
