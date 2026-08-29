@@ -48,7 +48,10 @@ export default function CreateNovel() {
   const [author, setAuthor] = useState('');
   const [releaseYear, setReleaseYear] = useState('');
   const [language, setLanguage] = useState('');
+
+  // Menyimpan ID user penerjemah, bukan nama user.
   const [translator, setTranslator] = useState('');
+
   const [description, setDescription] = useState('');
   const [status, setStatus] =
     useState<NovelStatus>('ongoing');
@@ -406,8 +409,9 @@ export default function CreateNovel() {
           language:
             language.trim() || null,
 
+          // Simpan ID user penerjemah.
           translator:
-            translator.trim() || null,
+            translator || null,
 
           slug,
 
@@ -733,7 +737,7 @@ export default function CreateNovel() {
                 return (
                   <option
                     key={item.id}
-                    value={name}
+                    value={item.id}
                   >
                     {name}
                   </option>

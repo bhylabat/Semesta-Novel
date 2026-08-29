@@ -49,7 +49,10 @@ export default function EditNovel() {
   const [description, setDescription] = useState('');
   const [releaseYear, setReleaseYear] = useState('');
   const [language, setLanguage] = useState('');
+
+  // Menyimpan ID user penerjemah, bukan username/display_name.
   const [translator, setTranslator] = useState('');
+
   const [status, setStatus] =
     useState<NovelStatus>('ongoing');
 
@@ -179,6 +182,9 @@ export default function EditNovel() {
           novelResult.data.language || ''
         );
 
+        /*
+         * Translator sekarang berisi ID user.
+         */
         setTranslator(
           novelResult.data.translator || ''
         );
@@ -305,9 +311,7 @@ export default function EditNovel() {
    */
   const removeCover = () => {
     if (coverPreview) {
-      URL.revokeObjectURL(
-        coverPreview
-      );
+      URL.revokeObjectURL(coverPreview);
     }
 
     setCoverFile(null);
@@ -539,8 +543,8 @@ export default function EditNovel() {
             language.trim() || null,
 
           /*
-           * Translator berisi nama user
-           * yang dipilih.
+           * Translator sekarang menyimpan
+           * ID user penerjemah.
            */
           translator:
             translator || null,
@@ -908,7 +912,7 @@ export default function EditNovel() {
               return (
                 <option
                   key={item.id}
-                  value={displayName}
+                  value={item.id}
                 >
                   {displayName}
                 </option>
