@@ -15,9 +15,15 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '@/lib/auth-context';
-import { adminCreateNovel, fetchGenres } from '@/lib/services';
+import {
+  adminCreateNovel,
+  fetchGenres,
+} from '@/lib/services';
 import { supabase } from '@/lib/supabase';
-import type { Genre, NovelStatus } from '@/types';
+import type {
+  Genre,
+  NovelStatus,
+} from '@/types';
 
 function createSlug(title: string): string {
   return title
@@ -28,11 +34,21 @@ function createSlug(title: string): string {
     .replace(/-+/g, '-');
 }
 
+type ProfileUser = {
+  id: string;
+  username: string;
+  display_name: string | null;
+};
+
 export default function CreateNovel() {
-  const { user, profile, loading } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
 
   const [title, setTitle] = useState('');
+  const [author, setAuthor] = useState('');
+  const [releaseYear, setReleaseYear] = useState('');
+  const [language, setLanguage] = useState('');
+  const [translator, setTranslator] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] =
     useState<NovelStatus>('ongoing');
@@ -41,6 +57,9 @@ export default function CreateNovel() {
   const [selectedGenres, setSelectedGenres] =
     useState<string[]>([]);
 
+  const [users, setUsers] =
+    useState<ProfileUser[]>([]);
+
   const [coverFile, setCoverFile] =
     useState<File | null>(null);
   const [coverPreview, setCoverPreview] =
@@ -48,14 +67,57 @@ export default function CreateNovel() {
 
   const [loadingGenres, setLoadingGenres] =
     useState(true);
+  const [loadingUsers, setLoadingUsers] =
+    useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!loading && !user) {
-      navigate('/login', { replace: true });
+      navigate('/login', {
+        replace: true,
+      });
     }
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (!user || loading) return;
+
+    const loadUsers = async () => {
+      try {
+        setLoadingUsers(true);
+
+        const {
+          data,
+          error: usersError,
+        } = await supabase
+          .from('profiles')
+          .select(
+            'id, username, display_name'
+          )
+          .order('username', {
+            ascending: true,
+          });
+
+        if (usersError) {
+          throw usersError;
+        }
+
+        setUsers(data || []);
+      } catch (err) {
+        console.error(
+          'Failed to load users:',
+          err
+        );
+
+        setUsers([]);
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+
+    void loadUsers();
+  }, [user, loading]);
 
   useEffect(() => {
     if (!user || loading) return;
@@ -66,9 +128,13 @@ export default function CreateNovel() {
         setError('');
 
         const data = await fetchGenres();
+
         setGenres(data);
       } catch (err) {
-        console.error('Failed to load genres:', err);
+        console.error(
+          'Failed to load genres:',
+          err
+        );
 
         setError(
           err instanceof Error
@@ -86,7 +152,9 @@ export default function CreateNovel() {
   useEffect(() => {
     return () => {
       if (coverPreview) {
-        URL.revokeObjectURL(coverPreview);
+        URL.revokeObjectURL(
+          coverPreview
+        );
       }
     };
   }, [coverPreview]);
@@ -94,59 +162,88 @@ export default function CreateNovel() {
   const handleCoverChange = (
     event: ChangeEvent<HTMLInputElement>
   ) => {
-    const file = event.target.files?.[0];
+    const file =
+      event.target.files?.[0];
 
     if (!file) return;
 
     setError('');
 
-    if (!file.type.startsWith('image/')) {
-      setError('File cover harus berupa gambar.');
+    const allowedTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      setError(
+        'Format cover hanya boleh JPG, PNG, atau WEBP.'
+      );
+
       event.target.value = '';
       return;
     }
 
-    const maxSize = 5 * 1024 * 1024;
+    const maxSize =
+      5 * 1024 * 1024;
 
     if (file.size > maxSize) {
-      setError('Ukuran cover maksimal 5 MB.');
+      setError(
+        'Ukuran cover maksimal 5 MB.'
+      );
+
       event.target.value = '';
       return;
     }
 
     if (coverPreview) {
-      URL.revokeObjectURL(coverPreview);
+      URL.revokeObjectURL(
+        coverPreview
+      );
     }
 
     setCoverFile(file);
-    setCoverPreview(URL.createObjectURL(file));
+
+    setCoverPreview(
+      URL.createObjectURL(file)
+    );
   };
 
   const removeCover = () => {
     if (coverPreview) {
-      URL.revokeObjectURL(coverPreview);
+      URL.revokeObjectURL(
+        coverPreview
+      );
     }
 
     setCoverFile(null);
     setCoverPreview(null);
   };
 
-  const handleGenreToggle = (genreId: string) => {
+  const handleGenreToggle = (
+    genreId: string
+  ) => {
     setError('');
 
     setSelectedGenres((current) => {
       if (current.includes(genreId)) {
-        return current.filter((id) => id !== genreId);
+        return current.filter(
+          (id) => id !== genreId
+        );
       }
 
       if (current.length >= 6) {
         setError(
           'Maksimal 6 genre yang dapat dipilih.'
         );
+
         return current;
       }
 
-      return [...current, genreId];
+      return [
+        ...current,
+        genreId,
+      ];
     });
   };
 
@@ -164,23 +261,31 @@ export default function CreateNovel() {
     const filePath =
       `${userId}/${slug}-${Date.now()}.${extension}`;
 
-    const { error: uploadError } =
-      await supabase.storage
-        .from('novel-covers')
-        .upload(filePath, file, {
+    const {
+      error: uploadError,
+    } = await supabase.storage
+      .from('novel-covers')
+      .upload(
+        filePath,
+        file,
+        {
           cacheControl: '3600',
           upsert: false,
           contentType: file.type,
-        });
+        }
+      );
 
     if (uploadError) {
       throw uploadError;
     }
 
-    const { data } =
-      supabase.storage
-        .from('novel-covers')
-        .getPublicUrl(filePath);
+    const {
+      data,
+    } = supabase.storage
+      .from('novel-covers')
+      .getPublicUrl(
+        filePath
+      );
 
     if (!data.publicUrl) {
       throw new Error(
@@ -198,17 +303,33 @@ export default function CreateNovel() {
 
     if (!user) return;
 
-    const trimmedTitle = title.trim();
+    const trimmedTitle =
+      title.trim();
+
+    const trimmedAuthor =
+      author.trim();
+
     const trimmedDescription =
       description.trim();
 
     if (!trimmedTitle) {
-      setError('Judul novel wajib diisi.');
+      setError(
+        'Judul novel wajib diisi.'
+      );
+      return;
+    }
+
+    if (!trimmedAuthor) {
+      setError(
+        'Author wajib diisi.'
+      );
       return;
     }
 
     if (!trimmedDescription) {
-      setError('Sinopsis novel wajib diisi.');
+      setError(
+        'Sinopsis novel wajib diisi.'
+      );
       return;
     }
 
@@ -226,7 +347,28 @@ export default function CreateNovel() {
       return;
     }
 
-    const slug = createSlug(trimmedTitle);
+    let parsedReleaseYear: number | null = null;
+
+    if (releaseYear.trim()) {
+      parsedReleaseYear = parseInt(
+        releaseYear,
+        10
+      );
+
+      if (
+        Number.isNaN(parsedReleaseYear) ||
+        parsedReleaseYear < 1900 ||
+        parsedReleaseYear > 2100
+      ) {
+        setError(
+          'Tahun rilis harus antara 1900 dan 2100.'
+        );
+        return;
+      }
+    }
+
+    const slug =
+      createSlug(trimmedTitle);
 
     if (!slug) {
       setError(
@@ -239,31 +381,51 @@ export default function CreateNovel() {
       setSaving(true);
       setError('');
 
-      let coverUrl: string | null = null;
+      let coverUrl:
+        | string
+        | null = null;
 
       if (coverFile) {
-        coverUrl = await uploadCover(
-          coverFile,
-          user.id,
-          slug
-        );
+        coverUrl =
+          await uploadCover(
+            coverFile,
+            user.id,
+            slug
+          );
       }
 
-      const novel = await adminCreateNovel({
-        title: trimmedTitle,
-        slug,
-        author:
-          profile?.display_name ||
-          profile?.username ||
-          'Penulis',
-        description: trimmedDescription,
-        cover_url: coverUrl,
-        banner_url: null,
-        status,
-        rating: 0,
-        views: 0,
-        bookmark_count: 0,
-      });
+      const novel =
+        await adminCreateNovel({
+          title: trimmedTitle,
+
+          author: trimmedAuthor,
+
+          release_year:
+            parsedReleaseYear,
+
+          language:
+            language.trim() || null,
+
+          translator:
+            translator.trim() || null,
+
+          slug,
+
+          description:
+            trimmedDescription,
+
+          cover_url:
+            coverUrl,
+
+          banner_url:
+            null,
+
+          status,
+
+          rating: 0,
+          views: 0,
+          bookmark_count: 0,
+        });
 
       if (!novel) {
         throw new Error(
@@ -271,17 +433,21 @@ export default function CreateNovel() {
         );
       }
 
-      const genreRows = selectedGenres.map(
-        (genreId) => ({
-          novel_id: novel.id,
-          genre_id: genreId,
-        })
-      );
+      const genreRows =
+        selectedGenres.map(
+          (genreId) => ({
+            novel_id: novel.id,
+            genre_id: genreId,
+          })
+        );
 
-      const { error: genreError } =
-        await supabase
-          .from('novel_genres')
-          .insert(genreRows);
+      const {
+        error: genreError,
+      } = await supabase
+        .from('novel_genres')
+        .insert(
+          genreRows
+        );
 
       if (genreError) {
         throw genreError;
@@ -317,9 +483,12 @@ export default function CreateNovel() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 md:py-8">
+
       <button
         type="button"
-        onClick={() => navigate('/author')}
+        onClick={() =>
+          navigate('/author')
+        }
         className="btn-ghost mb-5"
         disabled={saving}
       >
@@ -328,9 +497,10 @@ export default function CreateNovel() {
       </button>
 
       <div className="card overflow-hidden">
-        {/* Header */}
+
         <div className="p-5 md:p-6 border-b border-white/5">
           <div className="flex items-center gap-3">
+
             <div className="h-11 w-11 rounded-xl bg-primary/20 flex items-center justify-center">
               <BookOpen className="h-5 w-5 text-primary-400" />
             </div>
@@ -344,6 +514,7 @@ export default function CreateNovel() {
                 Mulai karya baru di Semesta Novel.
               </p>
             </div>
+
           </div>
         </div>
 
@@ -351,6 +522,7 @@ export default function CreateNovel() {
           onSubmit={handleSubmit}
           className="p-5 md:p-6 space-y-5"
         >
+
           {error && (
             <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4">
               <p className="text-sm text-red-400">
@@ -359,7 +531,7 @@ export default function CreateNovel() {
             </div>
           )}
 
-          {/* Cover */}
+          {/* COVER */}
           <div>
             <label className="block text-sm font-medium text-white mb-2">
               Cover Novel
@@ -367,6 +539,7 @@ export default function CreateNovel() {
 
             {coverPreview ? (
               <div className="relative w-40">
+
                 <img
                   src={coverPreview}
                   alt="Preview cover novel"
@@ -382,6 +555,7 @@ export default function CreateNovel() {
                 >
                   <X className="h-4 w-4" />
                 </button>
+
               </div>
             ) : (
               <label
@@ -414,7 +588,7 @@ export default function CreateNovel() {
             </p>
           </div>
 
-          {/* Judul */}
+          {/* JUDUL */}
           <div>
             <label
               htmlFor="novel-title"
@@ -428,7 +602,9 @@ export default function CreateNovel() {
               type="text"
               value={title}
               onChange={(event) =>
-                setTitle(event.target.value)
+                setTitle(
+                  event.target.value
+                )
               }
               placeholder="Masukkan judul novel"
               className="input w-full"
@@ -438,7 +614,139 @@ export default function CreateNovel() {
             />
           </div>
 
-          {/* Sinopsis */}
+          {/* AUTHOR */}
+          <div>
+            <label
+              htmlFor="novel-author"
+              className="block text-sm font-medium text-white mb-2"
+            >
+              Author
+            </label>
+
+            <input
+              id="novel-author"
+              type="text"
+              value={author}
+              onChange={(event) =>
+                setAuthor(
+                  event.target.value
+                )
+              }
+              placeholder="Contoh: Mad Snail"
+              className="input w-full"
+              maxLength={150}
+              disabled={saving}
+              required
+            />
+
+            <p className="text-xs text-muted mt-1">
+              Masukkan nama penulis asli novel.
+            </p>
+          </div>
+
+          {/* TAHUN + BAHASA */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+            <div>
+              <label
+                htmlFor="novel-release-year"
+                className="block text-sm font-medium text-white mb-2"
+              >
+                Tahun Rilis
+              </label>
+
+              <input
+                id="novel-release-year"
+                type="number"
+                value={releaseYear}
+                onChange={(event) =>
+                  setReleaseYear(
+                    event.target.value
+                  )
+                }
+                placeholder="Contoh: 2014"
+                className="input w-full"
+                min="1900"
+                max="2100"
+                disabled={saving}
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="novel-language"
+                className="block text-sm font-medium text-white mb-2"
+              >
+                Bahasa
+              </label>
+
+              <input
+                id="novel-language"
+                type="text"
+                value={language}
+                onChange={(event) =>
+                  setLanguage(
+                    event.target.value
+                  )
+                }
+                placeholder="Contoh: Mandarin"
+                className="input w-full"
+                maxLength={50}
+                disabled={saving}
+              />
+            </div>
+
+          </div>
+
+          {/* TERJEMAHAN */}
+          <div>
+            <label
+              htmlFor="novel-translator"
+              className="block text-sm font-medium text-white mb-2"
+            >
+              Terjemahan
+            </label>
+
+            <select
+              id="novel-translator"
+              value={translator}
+              onChange={(event) =>
+                setTranslator(
+                  event.target.value
+                )
+              }
+              className="input w-full"
+              disabled={
+                saving ||
+                loadingUsers
+              }
+            >
+              <option value="">
+                Tidak ada
+              </option>
+
+              {users.map((item) => {
+                const name =
+                  item.display_name ||
+                  item.username;
+
+                return (
+                  <option
+                    key={item.id}
+                    value={name}
+                  >
+                    {name}
+                  </option>
+                );
+              })}
+            </select>
+
+            <p className="text-xs text-muted mt-1">
+              Pilih user yang menerjemahkan novel ini.
+            </p>
+          </div>
+
+          {/* SINOPSIS */}
           <div>
             <label
               htmlFor="novel-description"
@@ -451,7 +759,9 @@ export default function CreateNovel() {
               id="novel-description"
               value={description}
               onChange={(event) =>
-                setDescription(event.target.value)
+                setDescription(
+                  event.target.value
+                )
               }
               placeholder="Ceritakan secara singkat tentang novelmu..."
               className="input w-full min-h-40 resize-y"
@@ -465,9 +775,11 @@ export default function CreateNovel() {
             </p>
           </div>
 
-          {/* Genre */}
+          {/* GENRE */}
           <div>
+
             <div className="flex items-center justify-between mb-2">
+
               <label className="block text-sm font-medium text-white">
                 Genre
               </label>
@@ -481,6 +793,7 @@ export default function CreateNovel() {
               >
                 {selectedGenres.length}/6 dipilih
               </span>
+
             </div>
 
             <p className="text-xs text-muted mb-3">
@@ -498,11 +811,15 @@ export default function CreateNovel() {
               </p>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {genres.map((genre) => {
-                  const selected =
-                    selectedGenres.includes(genre.id);
 
-                  const disabled =
+                {genres.map((genre) => {
+
+                  const selected =
+                    selectedGenres.includes(
+                      genre.id
+                    );
+
+                  const genreDisabled =
                     !selected &&
                     selectedGenres.length >= 6;
 
@@ -511,15 +828,20 @@ export default function CreateNovel() {
                       key={genre.id}
                       type="button"
                       onClick={() =>
-                        handleGenreToggle(genre.id)
+                        handleGenreToggle(
+                          genre.id
+                        )
                       }
-                      disabled={saving || disabled}
+                      disabled={
+                        saving ||
+                        genreDisabled
+                      }
                       className={`rounded-xl border px-3 py-2 text-sm transition-colors ${
                         selected
                           ? 'border-primary-400 bg-primary-500/20 text-primary-300'
                           : 'border-white/10 bg-white/[0.03] text-muted hover:border-primary-400/40 hover:text-white'
                       } ${
-                        disabled
+                        genreDisabled
                           ? 'opacity-40 cursor-not-allowed'
                           : ''
                       }`}
@@ -528,11 +850,12 @@ export default function CreateNovel() {
                     </button>
                   );
                 })}
+
               </div>
             )}
           </div>
 
-          {/* Status */}
+          {/* STATUS */}
           <div>
             <label
               htmlFor="novel-status"
@@ -566,11 +889,14 @@ export default function CreateNovel() {
             </select>
           </div>
 
-          {/* Actions */}
+          {/* ACTION */}
           <div className="pt-2 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+
             <button
               type="button"
-              onClick={() => navigate('/author')}
+              onClick={() =>
+                navigate('/author')
+              }
               className="btn-ghost"
               disabled={saving}
             >
@@ -583,6 +909,7 @@ export default function CreateNovel() {
               disabled={
                 saving ||
                 loadingGenres ||
+                loadingUsers ||
                 selectedGenres.length < 3
               }
             >
@@ -598,7 +925,9 @@ export default function CreateNovel() {
                 </>
               )}
             </button>
+
           </div>
+
         </form>
       </div>
     </div>

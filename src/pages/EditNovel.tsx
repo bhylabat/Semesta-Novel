@@ -11,12 +11,25 @@ import {
   Save,
   X,
 } from 'lucide-react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import {
+  Link,
+  useNavigate,
+  useParams,
+} from 'react-router-dom';
 
 import { useAuth } from '@/lib/auth-context';
 import { fetchGenres } from '@/lib/services';
 import { supabase } from '@/lib/supabase';
-import type { Genre, NovelStatus } from '@/types';
+import type {
+  Genre,
+  NovelStatus,
+} from '@/types';
+
+interface ProfileUser {
+  id: string;
+  username: string;
+  display_name: string | null;
+}
 
 export default function EditNovel() {
   const { id } = useParams();
@@ -26,9 +39,12 @@ export default function EditNovel() {
   const [title, setTitle] = useState('');
 
   // Author = nama penulis asli novel.
-  // Berbeda dengan author_id yang tetap merupakan
-  // user yang mengupload/mengelola novel.
+  // Berbeda dengan author_id yang merupakan
+  // akun user yang mengupload/mengelola novel.
   const [author, setAuthor] = useState('');
+
+  // Daftar user yang dapat dipilih sebagai penerjemah.
+  const [users, setUsers] = useState<ProfileUser[]>([]);
 
   const [description, setDescription] = useState('');
   const [releaseYear, setReleaseYear] = useState('');
@@ -47,11 +63,21 @@ export default function EditNovel() {
   const [coverPreview, setCoverPreview] =
     useState<string | null>(null);
 
-  const [loadingNovel, setLoadingNovel] = useState(true);
-  const [loadingGenres, setLoadingGenres] = useState(true);
+  const [loadingNovel, setLoadingNovel] =
+    useState(true);
+
+  const [loadingGenres, setLoadingGenres] =
+    useState(true);
+
+  const [loadingUsers, setLoadingUsers] =
+    useState(true);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  /*
+   * Memuat data novel, genre, dan user penerjemah.
+   */
   useEffect(() => {
     if (!user || loading || !id) return;
 
@@ -59,13 +85,18 @@ export default function EditNovel() {
       try {
         setLoadingNovel(true);
         setLoadingGenres(true);
+        setLoadingUsers(true);
         setError('');
 
         const [
           novelResult,
           genresResult,
           novelGenresResult,
+          usersResult,
         ] = await Promise.all([
+          /*
+           * DATA NOVEL
+           */
           supabase
             .from('novels')
             .select(
@@ -75,30 +106,73 @@ export default function EditNovel() {
             .eq('author_id', user.id)
             .single(),
 
+          /*
+           * SEMUA GENRE
+           */
           fetchGenres(),
 
+          /*
+           * GENRE YANG SUDAH DIMILIKI NOVEL
+           */
           supabase
             .from('novel_genres')
             .select('genre_id')
             .eq('novel_id', id),
+
+          /*
+           * SEMUA USER UNTUK PILIHAN PENERJEMAH
+           */
+          supabase
+            .from('profiles')
+            .select(
+              'id, username, display_name'
+            )
+            .order('username', {
+              ascending: true,
+            }),
         ]);
 
+        /*
+         * CEK DATA NOVEL
+         */
         if (novelResult.error) {
-          throw new Error('Novel tidak ditemukan.');
+          throw new Error(
+            'Novel tidak ditemukan atau kamu tidak memiliki akses.'
+          );
         }
 
+        /*
+         * CEK DATA GENRE NOVEL
+         */
         if (novelGenresResult.error) {
           throw novelGenresResult.error;
         }
 
-        setTitle(novelResult.data.title);
+        /*
+         * CEK DATA USER
+         */
+        if (usersResult.error) {
+          throw usersResult.error;
+        }
+
+        /*
+         * ISI FORM DENGAN DATA NOVEL LAMA
+         */
+        setTitle(
+          novelResult.data.title || ''
+        );
 
         setAuthor(
           novelResult.data.author || ''
         );
 
+        setDescription(
+          novelResult.data.description || ''
+        );
+
         setReleaseYear(
-          novelResult.data.release_year?.toString() || ''
+          novelResult.data.release_year
+            ?.toString() || ''
         );
 
         setLanguage(
@@ -109,10 +183,6 @@ export default function EditNovel() {
           novelResult.data.translator || ''
         );
 
-        setDescription(
-          novelResult.data.description || ''
-        );
-
         setStatus(
           novelResult.data.status as NovelStatus
         );
@@ -121,12 +191,25 @@ export default function EditNovel() {
           novelResult.data.cover_url || ''
         );
 
+        /*
+         * SIMPAN DATA GENRE
+         */
         setGenres(genresResult);
 
+        /*
+         * SIMPAN GENRE YANG SUDAH DIPILIH
+         */
         setSelectedGenres(
           novelGenresResult.data.map(
             (item) => item.genre_id
           )
+        );
+
+        /*
+         * SIMPAN DAFTAR USER
+         */
+        setUsers(
+          (usersResult.data || []) as ProfileUser[]
         );
       } catch (err) {
         console.error(
@@ -142,12 +225,17 @@ export default function EditNovel() {
       } finally {
         setLoadingNovel(false);
         setLoadingGenres(false);
+        setLoadingUsers(false);
       }
     };
 
     void loadData();
   }, [user, loading, id]);
 
+  /*
+   * Bersihkan object URL preview cover
+   * ketika component dibuang.
+   */
   useEffect(() => {
     return () => {
       if (coverPreview) {
@@ -156,67 +244,119 @@ export default function EditNovel() {
     };
   }, [coverPreview]);
 
+  /*
+   * PILIH COVER BARU
+   */
   const handleCoverChange = (
     event: ChangeEvent<HTMLInputElement>
   ) => {
-    const file = event.target.files?.[0];
+    const file =
+      event.target.files?.[0];
 
     if (!file) return;
 
     setError('');
 
+    /*
+     * Pastikan file berupa gambar.
+     */
     if (!file.type.startsWith('image/')) {
-      setError('File cover harus berupa gambar.');
+      setError(
+        'File cover harus berupa gambar.'
+      );
+
       event.target.value = '';
       return;
     }
 
-    const maxSize = 5 * 1024 * 1024;
+    /*
+     * Maksimal 5 MB.
+     */
+    const maxSize =
+      5 * 1024 * 1024;
 
     if (file.size > maxSize) {
-      setError('Ukuran cover maksimal 5 MB.');
+      setError(
+        'Ukuran cover maksimal 5 MB.'
+      );
+
       event.target.value = '';
       return;
     }
 
+    /*
+     * Hapus preview sebelumnya.
+     */
     if (coverPreview) {
-      URL.revokeObjectURL(coverPreview);
+      URL.revokeObjectURL(
+        coverPreview
+      );
     }
 
     setCoverFile(file);
-    setCoverPreview(URL.createObjectURL(file));
+
+    setCoverPreview(
+      URL.createObjectURL(file)
+    );
   };
 
+  /*
+   * HAPUS COVER BARU
+   */
   const removeCover = () => {
     if (coverPreview) {
-      URL.revokeObjectURL(coverPreview);
+      URL.revokeObjectURL(
+        coverPreview
+      );
     }
 
     setCoverFile(null);
     setCoverPreview(null);
   };
 
-  const handleGenreToggle = (genreId: string) => {
+  /*
+   * PILIH / BATALKAN GENRE
+   */
+  const handleGenreToggle = (
+    genreId: string
+  ) => {
     setError('');
 
     setSelectedGenres((current) => {
+      /*
+       * Jika sudah dipilih,
+       * hapus dari daftar.
+       */
       if (current.includes(genreId)) {
         return current.filter(
           (id) => id !== genreId
         );
       }
 
+      /*
+       * Maksimal 6 genre.
+       */
       if (current.length >= 6) {
         setError(
           'Maksimal 6 genre yang dapat dipilih.'
         );
+
         return current;
       }
 
-      return [...current, genreId];
+      /*
+       * Tambahkan genre.
+       */
+      return [
+        ...current,
+        genreId,
+      ];
     });
   };
 
+  /*
+   * UPLOAD COVER
+   */
   const uploadCover = async (
     file: File,
     userId: string,
@@ -231,14 +371,19 @@ export default function EditNovel() {
     const filePath =
       `${userId}/${novelId}-${Date.now()}.${extension}`;
 
-    const { error: uploadError } =
-      await supabase.storage
-        .from('novel-covers')
-        .upload(filePath, file, {
+    const {
+      error: uploadError,
+    } = await supabase.storage
+      .from('novel-covers')
+      .upload(
+        filePath,
+        file,
+        {
           cacheControl: '3600',
           upsert: false,
           contentType: file.type,
-        });
+        }
+      );
 
     if (uploadError) {
       throw uploadError;
@@ -247,7 +392,9 @@ export default function EditNovel() {
     const { data } =
       supabase.storage
         .from('novel-covers')
-        .getPublicUrl(filePath);
+        .getPublicUrl(
+          filePath
+        );
 
     if (!data.publicUrl) {
       throw new Error(
@@ -258,6 +405,9 @@ export default function EditNovel() {
     return data.publicUrl;
   };
 
+  /*
+   * SIMPAN PERUBAHAN NOVEL
+   */
   const handleSubmit = async (
     event: FormEvent<HTMLFormElement>
   ) => {
@@ -265,37 +415,67 @@ export default function EditNovel() {
 
     if (!user || !id) return;
 
-    const trimmedTitle = title.trim();
-    const trimmedAuthor = author.trim();
+    const trimmedTitle =
+      title.trim();
+
+    const trimmedAuthor =
+      author.trim();
+
     const trimmedDescription =
       description.trim();
 
+    /*
+     * VALIDASI JUDUL
+     */
     if (!trimmedTitle) {
-      setError('Judul novel wajib diisi.');
+      setError(
+        'Judul novel wajib diisi.'
+      );
+
       return;
     }
 
+    /*
+     * VALIDASI AUTHOR
+     */
     if (!trimmedAuthor) {
-      setError('Author wajib diisi.');
+      setError(
+        'Author wajib diisi.'
+      );
+
       return;
     }
 
+    /*
+     * VALIDASI SINOPSIS
+     */
     if (!trimmedDescription) {
-      setError('Sinopsis novel wajib diisi.');
+      setError(
+        'Sinopsis novel wajib diisi.'
+      );
+
       return;
     }
 
+    /*
+     * MINIMAL 3 GENRE
+     */
     if (selectedGenres.length < 3) {
       setError(
         'Pilih minimal 3 genre untuk novel.'
       );
+
       return;
     }
 
+    /*
+     * MAKSIMAL 6 GENRE
+     */
     if (selectedGenres.length > 6) {
       setError(
         'Maksimal 6 genre yang dapat dipilih.'
       );
+
       return;
     }
 
@@ -303,75 +483,121 @@ export default function EditNovel() {
       setSaving(true);
       setError('');
 
-      let newCoverUrl = coverUrl;
+      /*
+       * Jika tidak memilih cover baru,
+       * gunakan cover lama.
+       */
+      let newCoverUrl =
+        coverUrl;
 
+      /*
+       * Jika memilih cover baru,
+       * upload cover tersebut.
+       */
       if (coverFile) {
-        newCoverUrl = await uploadCover(
-          coverFile,
-          user.id,
-          id
-        );
+        newCoverUrl =
+          await uploadCover(
+            coverFile,
+            user.id,
+            id
+          );
       }
 
-      const { error: novelError } =
-        await supabase
-          .from('novels')
-          .update({
-            title: trimmedTitle,
+      /*
+       * UPDATE DATA NOVEL
+       */
+      const {
+        error: novelError,
+      } = await supabase
+        .from('novels')
+        .update({
+          title: trimmedTitle,
 
-            // Author = penulis asli novel.
-            // Tidak mengubah author_id.
-            author: trimmedAuthor,
+          /*
+           * Author = penulis asli.
+           * Tidak mengubah author_id.
+           */
+          author: trimmedAuthor,
 
-            description: trimmedDescription,
-            status,
-            cover_url: newCoverUrl || null,
-            release_year: releaseYear
-              ? parseInt(releaseYear, 10)
+          description:
+            trimmedDescription,
+
+          status,
+
+          cover_url:
+            newCoverUrl || null,
+
+          release_year:
+            releaseYear
+              ? parseInt(
+                  releaseYear,
+                  10
+                )
               : null,
-            language: language.trim() || null,
-            translator: translator.trim() || null,
-          })
-          .eq('id', id)
-          .eq('author_id', user.id);
+
+          language:
+            language.trim() || null,
+
+          /*
+           * Translator berisi nama user
+           * yang dipilih.
+           */
+          translator:
+            translator || null,
+        })
+        .eq('id', id)
+        .eq('author_id', user.id);
 
       if (novelError) {
         throw novelError;
       }
 
       /*
-       * Hapus semua genre lama.
+       * HAPUS GENRE LAMA
        */
-      const { error: deleteGenreError } =
-        await supabase
-          .from('novel_genres')
-          .delete()
-          .eq('novel_id', id);
+      const {
+        error: deleteGenreError,
+      } = await supabase
+        .from('novel_genres')
+        .delete()
+        .eq('novel_id', id);
 
       if (deleteGenreError) {
         throw deleteGenreError;
       }
 
       /*
-       * Simpan semua genre yang baru dipilih.
+       * BUAT DATA GENRE BARU
        */
-      const genreRows = selectedGenres.map(
-        (genreId) => ({
-          novel_id: id,
-          genre_id: genreId,
-        })
-      );
+      const genreRows =
+        selectedGenres.map(
+          (genreId) => ({
+            novel_id: id,
+            genre_id: genreId,
+          })
+        );
 
-      const { error: insertGenreError } =
-        await supabase
-          .from('novel_genres')
-          .insert(genreRows);
+      /*
+       * SIMPAN GENRE BARU
+       */
+      const {
+        error: insertGenreError,
+      } = await supabase
+        .from('novel_genres')
+        .insert(
+          genreRows
+        );
 
       if (insertGenreError) {
         throw insertGenreError;
       }
 
-      navigate('/author/novels');
+      /*
+       * BERHASIL
+       */
+      navigate(
+        '/author/novels'
+      );
     } catch (err) {
       console.error(
         'Failed to update novel:',
@@ -388,28 +614,43 @@ export default function EditNovel() {
     }
   };
 
-  if (loading || loadingNovel) {
+  /*
+   * LOADING
+   */
+  if (
+    loading ||
+    loadingNovel
+  ) {
     return (
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-8">
         <div className="skeleton h-10 w-48 rounded-xl mb-6" />
+
         <div className="skeleton h-96 rounded-2xl" />
       </div>
     );
   }
 
-  if (!user) return null;
+  /*
+   * USER BELUM LOGIN
+   */
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 md:py-8">
 
+      {/* KEMBALI */}
       <Link
         to="/author/novels"
         className="text-sm text-muted hover:text-white flex items-center gap-1 mb-5"
       >
         <ArrowLeft className="h-4 w-4" />
+
         Kembali ke Kelola Novel
       </Link>
 
+      {/* JUDUL HALAMAN */}
       <h1 className="text-2xl font-bold text-white">
         Edit Novel
       </h1>
@@ -418,6 +659,7 @@ export default function EditNovel() {
         Ubah informasi novel kamu.
       </p>
 
+      {/* ERROR */}
       {error && (
         <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 mb-5">
           <p className="text-sm text-red-400">
@@ -431,7 +673,9 @@ export default function EditNovel() {
         className="card p-5 space-y-5"
       >
 
-        {/* COVER */}
+        {/* =========================
+            COVER
+        ========================== */}
         <div>
           <label className="block text-sm font-medium text-white mb-2">
             Cover Novel
@@ -441,7 +685,8 @@ export default function EditNovel() {
 
             <div className="relative w-28 h-40 rounded-xl overflow-hidden bg-black/20 flex-shrink-0">
 
-              {coverPreview || coverUrl ? (
+              {coverPreview ||
+              coverUrl ? (
                 <img
                   src={
                     coverPreview ||
@@ -453,6 +698,7 @@ export default function EditNovel() {
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center text-xs text-muted">
                   <ImagePlus className="h-6 w-6 mb-2" />
+
                   Belum ada cover
                 </div>
               )}
@@ -460,7 +706,9 @@ export default function EditNovel() {
               {coverPreview && (
                 <button
                   type="button"
-                  onClick={removeCover}
+                  onClick={
+                    removeCover
+                  }
                   className="absolute top-2 right-2 h-7 w-7 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg"
                   aria-label="Hapus cover baru"
                   disabled={saving}
@@ -476,6 +724,7 @@ export default function EditNovel() {
                 className="btn-secondary cursor-pointer inline-flex"
               >
                 <ImagePlus className="h-4 w-4" />
+
                 Ganti Cover
               </label>
 
@@ -483,7 +732,9 @@ export default function EditNovel() {
                 id="cover"
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
-                onChange={handleCoverChange}
+                onChange={
+                  handleCoverChange
+                }
                 className="hidden"
                 disabled={saving}
               />
@@ -495,14 +746,17 @@ export default function EditNovel() {
               )}
 
               <p className="text-xs text-muted mt-2">
-                JPG, PNG, atau WEBP. Maksimal 5 MB.
+                JPG, PNG, atau WEBP.
+                Maksimal 5 MB.
               </p>
             </div>
 
           </div>
         </div>
 
-        {/* JUDUL */}
+        {/* =========================
+            JUDUL
+        ========================== */}
         <div>
           <label
             htmlFor="novel-title"
@@ -516,7 +770,9 @@ export default function EditNovel() {
             type="text"
             value={title}
             onChange={(event) =>
-              setTitle(event.target.value)
+              setTitle(
+                event.target.value
+              )
             }
             className="input w-full"
             maxLength={150}
@@ -525,7 +781,9 @@ export default function EditNovel() {
           />
         </div>
 
-        {/* AUTHOR */}
+        {/* =========================
+            AUTHOR
+        ========================== */}
         <div>
           <label
             htmlFor="novel-author"
@@ -539,7 +797,9 @@ export default function EditNovel() {
             type="text"
             value={author}
             onChange={(event) =>
-              setAuthor(event.target.value)
+              setAuthor(
+                event.target.value
+              )
             }
             className="input w-full"
             placeholder="Contoh: Mad Snail"
@@ -553,9 +813,12 @@ export default function EditNovel() {
           </p>
         </div>
 
-        {/* METADATA NOVEL */}
+        {/* =========================
+            METADATA
+        ========================== */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
+          {/* TAHUN RILIS */}
           <div>
             <label
               htmlFor="novel-release-year"
@@ -569,7 +832,9 @@ export default function EditNovel() {
               type="number"
               value={releaseYear}
               onChange={(event) =>
-                setReleaseYear(event.target.value)
+                setReleaseYear(
+                  event.target.value
+                )
               }
               className="input w-full"
               placeholder="Contoh: 2014"
@@ -579,6 +844,7 @@ export default function EditNovel() {
             />
           </div>
 
+          {/* BAHASA */}
           <div>
             <label
               htmlFor="novel-language"
@@ -592,7 +858,9 @@ export default function EditNovel() {
               type="text"
               value={language}
               onChange={(event) =>
-                setLanguage(event.target.value)
+                setLanguage(
+                  event.target.value
+                )
               }
               className="input w-full"
               placeholder="Contoh: Mandarin"
@@ -603,6 +871,9 @@ export default function EditNovel() {
 
         </div>
 
+        {/* =========================
+            TERJEMAHAN
+        ========================== */}
         <div>
           <label
             htmlFor="novel-translator"
@@ -611,21 +882,49 @@ export default function EditNovel() {
             Terjemahan
           </label>
 
-          <input
+          <select
             id="novel-translator"
-            type="text"
             value={translator}
             onChange={(event) =>
-              setTranslator(event.target.value)
+              setTranslator(
+                event.target.value
+              )
             }
             className="input w-full"
-            placeholder="Contoh: Bhylabatt"
-            maxLength={100}
-            disabled={saving}
-          />
+            disabled={
+              saving ||
+              loadingUsers
+            }
+          >
+            <option value="">
+              Tidak ada
+            </option>
+
+            {users.map((item) => {
+              const displayName =
+                item.display_name ||
+                item.username;
+
+              return (
+                <option
+                  key={item.id}
+                  value={displayName}
+                >
+                  {displayName}
+                </option>
+              );
+            })}
+          </select>
+
+          <p className="text-xs text-muted mt-1">
+            Pilih user yang menerjemahkan
+            novel ini.
+          </p>
         </div>
 
-        {/* SINOPSIS */}
+        {/* =========================
+            SINOPSIS
+        ========================== */}
         <div>
           <label
             htmlFor="novel-description"
@@ -649,13 +948,17 @@ export default function EditNovel() {
           />
 
           <p className="text-xs text-muted mt-1">
-            {description.length}/5000 karakter
+            {description.length}/5000
+            karakter
           </p>
         </div>
 
-        {/* GENRE */}
+        {/* =========================
+            GENRE
+        ========================== */}
         <div>
           <div className="flex items-center justify-between mb-2">
+
             <label className="block text-sm font-medium text-white">
               Genre
             </label>
@@ -667,17 +970,21 @@ export default function EditNovel() {
                   : 'text-primary-300'
               }`}
             >
-              {selectedGenres.length}/6 dipilih
+              {selectedGenres.length}/6
+              dipilih
             </span>
+
           </div>
 
           <p className="text-xs text-muted mb-3">
-            Pilih minimal 3 dan maksimal 6 genre.
+            Pilih minimal 3 dan maksimal
+            6 genre.
           </p>
 
           {loadingGenres ? (
             <div className="flex items-center gap-2 text-sm text-muted">
               <Loader2 className="h-4 w-4 animate-spin" />
+
               Memuat genre...
             </div>
           ) : genres.length === 0 ? (
@@ -686,6 +993,7 @@ export default function EditNovel() {
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">
+
               {genres.map((genre) => {
                 const selected =
                   selectedGenres.includes(
@@ -706,7 +1014,8 @@ export default function EditNovel() {
                       )
                     }
                     disabled={
-                      saving || disabled
+                      saving ||
+                      disabled
                     }
                     className={`rounded-xl border px-3 py-2 text-sm transition-colors ${
                       selected
@@ -722,11 +1031,14 @@ export default function EditNovel() {
                   </button>
                 );
               })}
+
             </div>
           )}
         </div>
 
-        {/* STATUS */}
+        {/* =========================
+            STATUS
+        ========================== */}
         <div>
           <label
             htmlFor="novel-status"
@@ -740,7 +1052,8 @@ export default function EditNovel() {
             value={status}
             onChange={(event) =>
               setStatus(
-                event.target.value as NovelStatus
+                event.target
+                  .value as NovelStatus
               )
             }
             className="input w-full"
@@ -760,7 +1073,9 @@ export default function EditNovel() {
           </select>
         </div>
 
-        {/* ACTION */}
+        {/* =========================
+            ACTION
+        ========================== */}
         <div className="pt-2 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
 
           <Link
@@ -776,17 +1091,20 @@ export default function EditNovel() {
             disabled={
               saving ||
               loadingGenres ||
+              loadingUsers ||
               selectedGenres.length < 3
             }
           >
             {saving ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
+
                 Menyimpan...
               </>
             ) : (
               <>
                 <Save className="h-4 w-4" />
+
                 Simpan Perubahan
               </>
             )}
