@@ -74,7 +74,7 @@ export default function NovelCard({
           </div>
         </div>
 
-        <div className="p-3">
+          <div className="p-3 min-h-[150px] flex flex-col">
           <h3 className="line-clamp-2 text-sm font-semibold text-white transition-colors group-hover:text-primary-300">
             {novel.title}
           </h3>
@@ -91,7 +91,7 @@ export default function NovelCard({
             </p>
           )}
 
-          <div className="mt-3 grid grid-cols-3 gap-1 border-t border-white/5 pt-2">
+            <div className="mt-auto pt-3 grid grid-cols-3 gap-1 border-t border-white/5">
             <div className="flex min-w-0 items-center gap-1">
               <Eye className="h-3.5 w-3.5 shrink-0 text-muted" />
               <span className="truncate text-xs font-medium text-white">
